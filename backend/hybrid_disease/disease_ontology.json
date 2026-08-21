@@ -1,0 +1,40 @@
+{
+  "version": "cinnamon-ontology-v1",
+  "classes": {
+    "healthy_cinnamon": {
+      "display_label": "Healthy Cinnamon",
+      "visual_description": "No modeled disease features are visible.",
+      "expert_review_required": false
+    },
+    "leaf_blight": {
+      "display_label": "Leaf Blight",
+      "visual_description": "Possible blighted or necrotic areas on the leaf.",
+      "expert_review_required": true
+    },
+    "leaf_miner_attack": {
+      "display_label": "Leaf Miner Attack",
+      "visual_description": "Possible trails, mines, or damaged leaf tissue.",
+      "expert_review_required": true
+    },
+    "leaf_patches_fungal": {
+      "display_label": "Leaf Patches - Fungal Disease",
+      "visual_description": "Possible discoloured or irregular patches on the leaf.",
+      "expert_review_required": true
+    },
+    "lower_leaf_gall": {
+      "display_label": "Lower Leaf Gall",
+      "visual_description": "Possible gall-like growths on the lower leaf surface.",
+      "expert_review_required": true
+    },
+    "non_cinnamon": {
+      "display_label": "Non-Cinnamon",
+      "visual_description": "",
+      "expert_review_required": true
+    },
+    "upper_leaf_gall": {
+      "display_label": "Upper Leaf Gall",
+      "visual_description": "Possible gall-like growths on the upper leaf surface.",
+      "expert_review_required": true
+    }
+  }
+}

@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+__pycache__/
+*.py[cod]
+
+venv/
+.venv/
+env/
+
+node_modules/
+
+.env
+.env.*
+!.env.example
+
+firebase-key.json
+firebase_auth_private_key.json
+firebase-adminsdk*.json
+*serviceAccount*.json
+
+.DS_Store
+
+.vscode/
+.idea/
+
+*.log
+tmp/
+temp/
+.qodo/
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Firebase
+firebase-key.json
+backend/firebase-key.json
+
+# Node
+node_modules/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+
+# Build
+dist/
+build/
+
+# TensorFlow checkpoints
+*.ckpt
+*.pb
+
+# Jupyter
+.ipynb_checkpoints/
+# Legacy / unused large ML model
+cinnamon_model_final.h5

@@ -1,0 +1,46 @@
+# Operating-system and editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Local secrets and credentials
+**/.env
+**/.env.*
+!**/.env.example
+**/firebase-key.json
+**/firebase_auth_private_key.json
+**/firebase-adminsdk*.json
+**/*serviceAccount*.json
+**/*.pem
+**/*.p12
+
+# Python environments and caches
+**/.venv/
+**/venv/
+**/env/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Node and Next.js generated files
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/coverage/
+**/.vercel/
+**/*.tsbuildinfo
+
+# Runtime data and logs
+backend/Dataset/
+**/*.log
+**/tmp/
+**/temp/
+
+# Generated and obsolete ML artifacts
+backend/*.h5
+!backend/cinnamon_multi_part_model.h5
+backend/*.ckpt
+backend/*.pb
+backend/training_accuracy.png
