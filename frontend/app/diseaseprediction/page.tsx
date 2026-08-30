@@ -458,24 +458,7 @@ export default function DiseasePredictor() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-slate-200/60 bg-white p-5">
-                  <p className="kpi-label">
-                    Confidence Score
-                  </p>
-
-                  <h3 className="mt-2 text-3xl font-bold text-slate-900">
-                    {confidence}
-                  </h3>
-
-                  {result?.low_confidence && (
-                    <p className="mt-2 text-sm leading-6 text-amber-700">
-                      This is the model&apos;s top classification,
-                      but expert review is recommended because the
-                      confidence or class margin is below the review
-                      threshold.
-                    </p>
-                  )}
-                </div>
+                
               </div>
             </div>
           </div>

@@ -338,80 +338,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ================= SUMMARY CARDS ================= */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="card p-5">
-              <div className="flex items-start justify-between">
-                <p className="kpi-label">
-                  Total Growth Predictions
-                </p>
-
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
-              </div>
-
-              <h2 className="kpi-value">
-                {totalGrowth}
-              </h2>
-
-              <span className="mt-3 badge-healthy">
-                Records
-              </span>
-            </div>
-
-            <div className="card p-5">
-              <div className="flex items-start justify-between">
-                <p className="kpi-label">
-                  Total Disease Scans
-                </p>
-
-                <ScanLine className="h-4 w-4 text-rose-600" />
-              </div>
-
-              <h2 className="kpi-value">
-                {totalDisease}
-              </h2>
-
-              <span className="mt-3 badge-danger">
-                Scans
-              </span>
-            </div>
-
-            <div className="card p-5">
-              <div className="flex items-start justify-between">
-                <p className="kpi-label">
-                  Last Prediction Status
-                </p>
-
-                <Activity className="h-4 w-4 text-slate-500" />
-              </div>
-
-              <h2 className="mt-2 line-clamp-2 text-lg font-bold text-slate-900">
-                {lastStatus}
-              </h2>
-
-              <span className="mt-3 badge-info">
-                Latest
-              </span>
-            </div>
-
-            <div className="card p-5">
-              <div className="flex items-start justify-between">
-                <p className="kpi-label">
-                  Latest Alert
-                </p>
-
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-              </div>
-
-              <h2 className="mt-2 line-clamp-2 text-lg font-bold text-slate-900">
-                {latestAlert}
-              </h2>
-
-              <span className="mt-3 badge-warning">
-                Alert
-              </span>
-            </div>
-          </div>
+          
 
           {/* ================= RECENT TABLES ================= */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -764,20 +691,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="card p-6">
-              <h3 className="mb-2 text-base font-semibold text-slate-900">
-                Quick Insights
-              </h3>
-
-              <p className="text-sm leading-relaxed text-slate-600">
-                Based on collected data, monitor soil
-                moisture regularly and maintain proper
-                environmental conditions for healthy
-                cinnamon growth.
-              </p>
-
-
-            </div>
+            
           </div>
         </div>
       </div>
