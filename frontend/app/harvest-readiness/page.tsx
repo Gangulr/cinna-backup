@@ -579,19 +579,6 @@ export default function HarvestReadinessPage() {
                   </div>
                 </div>
               </section>
-
-              <section className="card p-6">
-                <h3 className="mb-5 text-base font-semibold text-slate-900">Robotic Harvesting Data</h3>
-                <div className="space-y-3">
-                  <InfoCard title="Robotic Action" value={readiness.robotic_action} green={readiness.robotic_action === "APPROVED"} />
-                  <InfoCard title="Plant ID" value={String(formData.plant_id)} />
-                  <InfoCard title="Readiness Score" value={`${readiness.score}%`} green={readiness.score >= 80} />
-                  <InfoCard title="Bark Thickness" value={`${formData.barkThickness || 0} mm`} />
-                  <InfoCard title="Disease Status" value={formData.diseaseStatus || "Unknown"} green={formData.diseaseStatus === "Healthy"} />
-                  <InfoCard title="CDD Season Check" value={monthInfo.status === "best" ? "Optimal Season" : monthInfo.status === "limited" ? "Limited Season" : "Off-Season"} green={monthInfo.status === "best"} />
-                  <InfoCard title="CDD Plant Check" value={cddReady ? "All Checks Passed" : `${cddWarnings.length} Warning(s)`} green={cddReady} />
-                </div>
-              </section>
             </div>
           </div>
         </div>
