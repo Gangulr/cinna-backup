@@ -253,7 +253,7 @@ export default function Dashboard() {
         <div className="page-shell">
           <div>
             <h1 className="page-title">
-              Advanced Analytics Overview
+              Research Analytics Overview
             </h1>
 
             <p className="page-subtitle">
@@ -776,39 +776,7 @@ export default function Dashboard() {
                 cinnamon growth.
               </p>
 
-              <div className="mt-6 space-y-3">
-                <div className="rounded-lg border border-emerald-200 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="kpi-label">
-                      System Status
-                    </p>
 
-                    <span className="badge-healthy">
-                      Online
-                    </span>
-                  </div>
-
-                  <h4 className="mt-2 text-lg font-bold text-slate-900">
-                    Monitoring Active
-                  </h4>
-                </div>
-
-                <div className="rounded-lg border border-amber-200 bg-white p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="kpi-label">
-                      System Alert
-                    </p>
-
-                    <span className="badge-warning">
-                      Action
-                    </span>
-                  </div>
-
-                  <h4 className="mt-2 text-lg font-bold text-slate-900">
-                    Continue collecting more data
-                  </h4>
-                </div>
-              </div>
             </div>
           </div>
         </div>
