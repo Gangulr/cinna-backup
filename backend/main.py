@@ -2,7 +2,7 @@ from datetime import datetime
 from email.message import EmailMessage
 from html import escape
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Literal, Optional, Union
 
 import csv
 import hashlib
@@ -12,10 +12,14 @@ import os
 import random
 import smtplib
 import ssl
+import threading
+import time
 
+import faiss
 import numpy as np
 import pandas as pd
 import requests
+import serial
 import tensorflow as tf
 
 from dotenv import load_dotenv
@@ -33,9 +37,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from sklearn.ensemble import RandomForestRegressor
+from serial import SerialException
+
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.model_selection import train_test_split
 
 from hybrid_disease import (
     HybridDiseaseOrchestrator,
@@ -76,6 +84,131 @@ app = FastAPI(
 
 
 # =========================================================
+# ESP32 USB SERIAL CONTROLLER
+# =========================================================
+
+ESP32_SERIAL_PORT = os.getenv(
+    "ESP32_SERIAL_PORT",
+    "",
+).strip()
+
+ESP32_BAUD_RATE = int(
+    os.getenv(
+        "ESP32_BAUD_RATE",
+        "115200",
+    )
+)
+
+esp32_serial: Optional[serial.Serial] = None
+esp32_serial_lock = threading.Lock()
+
+relay_states = {
+    "r1": False,
+    "r2": False,
+}
+
+
+class RelayCommand(BaseModel):
+    relay: Literal["r1", "r2"]
+    state: Literal["on", "off"]
+
+
+def connect_esp32() -> bool:
+    """Open the ESP32 USB serial connection when needed."""
+    global esp32_serial
+
+    if esp32_serial is not None and esp32_serial.is_open:
+        return True
+
+    if not ESP32_SERIAL_PORT:
+        print("ESP32_SERIAL_PORT is not configured")
+        return False
+
+    try:
+        esp32_serial = serial.Serial(
+            port=ESP32_SERIAL_PORT,
+            baudrate=ESP32_BAUD_RATE,
+            timeout=2,
+            write_timeout=2,
+        )
+
+        # Opening a serial connection can restart an ESP32.
+        time.sleep(2)
+        esp32_serial.reset_input_buffer()
+
+        print(
+            f"ESP32 connected: {ESP32_SERIAL_PORT} "
+            f"at {ESP32_BAUD_RATE} baud"
+        )
+        return True
+
+    except (SerialException, OSError) as error:
+        esp32_serial = None
+        print(f"ESP32 connection failed: {error}")
+        return False
+
+
+def send_esp32_command(command: str) -> str:
+    """Send one supported relay command and return the ESP32 reply."""
+    global esp32_serial
+
+    with esp32_serial_lock:
+        if not connect_esp32():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "ESP32 is not connected. Check the USB cable, "
+                    "ESP32_SERIAL_PORT and Arduino Serial Monitor."
+                ),
+            )
+
+        try:
+            assert esp32_serial is not None
+            esp32_serial.reset_input_buffer()
+            esp32_serial.write(f"{command}\n".encode("utf-8"))
+            esp32_serial.flush()
+
+            response = esp32_serial.readline().decode(
+                "utf-8",
+                errors="ignore",
+            ).strip()
+
+            if not response:
+                response = "Command sent; no serial reply received"
+
+            return response
+
+        except (SerialException, OSError) as error:
+            if esp32_serial is not None:
+                try:
+                    esp32_serial.close()
+                except Exception:
+                    pass
+
+            esp32_serial = None
+
+            raise HTTPException(
+                status_code=503,
+                detail=f"ESP32 communication failed: {error}",
+            ) from error
+
+
+def close_esp32_connection() -> None:
+    """Release the USB serial port during backend shutdown."""
+    global esp32_serial
+
+    with esp32_serial_lock:
+        if esp32_serial is not None:
+            try:
+                if esp32_serial.is_open:
+                    esp32_serial.close()
+            except Exception:
+                pass
+            finally:
+                esp32_serial = None
+
+
+# =========================================================
 # CONFIGURATION
 # =========================================================
 
@@ -102,6 +235,10 @@ DISEASE_MODEL_PATH = (
 DISEASE_CLASS_NAMES_PATH = (
     BASE_DIR / "class_names.json"
 )
+
+# FAISS index files produced by build_faiss_index.py
+FAISS_INDEX_PATH    = BASE_DIR / "cinnamon_faiss.index"
+FAISS_LABELMAP_PATH = BASE_DIR / "faiss_label_map.json"
 
 EXPECTED_DISEASE_CLASS_NAMES = [
     "healthy_cinnamon",
@@ -142,6 +279,15 @@ CONFIDENCE_THRESHOLD = get_probability_threshold(
 MARGIN_THRESHOLD = get_probability_threshold(
     "DISEASE_MARGIN_THRESHOLD",
     0.15,
+)
+
+# Minimum cosine similarity for a FAISS retrieval result to be trusted.
+# Inner-product on L2-normalised vectors equals cosine similarity (range 0-1).
+# Below this threshold the image is considered out-of-distribution and falls
+# back to the softmax confidence/margin gate.
+FAISS_SIMILARITY_THRESHOLD = get_probability_threshold(
+    "FAISS_SIMILARITY_THRESHOLD",
+    0.82,
 )
 
 try:
@@ -203,6 +349,7 @@ print(
 @app.on_event("shutdown")
 async def close_hybrid_disease_service() -> None:
     await hybrid_disease_orchestrator.gemini_service.close()
+    close_esp32_connection()
 
 
 SMTP_HOST = os.getenv(
@@ -267,17 +414,13 @@ HARVEST_CSV_HEADERS = [
     "user_email",
     "plant_id",
     "date",
-    "age",
-    "growth_rate",
-    "bark_thickness",
-    "disease_status",
-    "current_month",
-    "bark_quality",
-    "maturity_level",
-    "health_status",
-    "readiness_score",
-    "readiness_status",
-    "robotic_action",
+    "age_months",
+    "rainfall_index",
+    "phenology_stage",
+    "bark_browning_percent",
+    "final_score",
+    "status",
+    "action",
 ]
 
 
@@ -302,23 +445,50 @@ app.add_middleware(
 # =========================================================
 
 class SensorData(BaseModel):
+    temperature: float = Field(gt=0, le=60)
+    humidity: float = Field(gt=0, le=100)
+    moisture: float = Field(ge=0, le=100)
+    plant_id: str = Field(default="P-001", min_length=1, max_length=100)
+    plant_age_months: int = Field(default=18, ge=1, le=120)
+
+
+class ApprovedCutResponse(BaseModel):
+    predicted_bark_thickness_mm: float
+    model_uncertainty_mm: float
+    commanded_cut_depth_mm: float
+    model_confidence: float
+    cut_permission: Literal["APPROVED"] = "APPROVED"
+
+
+class BlockedCutResponse(BaseModel):
+    cut_permission: Literal["BLOCKED"] = "BLOCKED"
+    reason: Literal["LOW_MODEL_CONFIDENCE"]
+
+
+class RoboticCutRequest(BaseModel):
+    plant_age_months: float
     temperature: float
     humidity: float
     moisture: float
-    plant_id: str = "P-001"
-    plant_age_months: int = 18
+
+
+class HarvestReadinessResponse(BaseModel):
+    final_score: float = Field(ge=0, le=100)
+    status: Literal[
+        "Ready for Harvest",
+        "Almost Ready",
+        "Not Ready",
+    ]
+    action: Literal["APPROVED", "WAIT", "BLOCKED"]
+    status_message: str
 
 
 class HarvestData(BaseModel):
-    plant_id: str
-    age: int
-    growth_rate: float
-    bark_thickness: float
-    disease_status: str
-    current_month: str
-    bark_quality: float
-    maturity_level: float
-    health_status: float
+    plant_id: str = Field(min_length=1, max_length=100)
+    age_months: float
+    rainfall_index: float
+    phenology_stage: int
+    bark_browning_percent: float
 
 
 # =========================================================
@@ -1038,61 +1208,143 @@ def save_harvest_to_csv(
 # GROWTH MODEL
 # =========================================================
 
-def train_growth_model() -> RandomForestRegressor:
-    np.random.seed(42)
+GROWTH_TRAINING_RANGES: Dict[str, tuple[float, float]] = {
+    "plant_age_months": (1.0, 120.0),
+    "temperature": (0.1, 60.0),
+    "humidity": (0.1, 100.0),
+    "moisture": (0.0, 100.0),
+}
 
-    training_data = {
-        "Temperature": np.random.uniform(
-            22,
-            35,
-            300,
-        ),
-        "Humidity": np.random.uniform(
-            60,
-            90,
-            300,
-        ),
-        "Soil_Moisture": np.random.uniform(
-            30,
-            70,
-            300,
-        ),
-    }
+
+def build_growth_training_data(
+    n_samples: int = 10000,
+    random_seed: int = 42,
+) -> tuple[pd.DataFrame, np.ndarray]:
+    """Create reproducible data across the complete supported input domain."""
+    random_generator = np.random.default_rng(random_seed)
+
+    age_months = random_generator.uniform(
+        *GROWTH_TRAINING_RANGES["plant_age_months"],
+        n_samples,
+    )
+    temperature = random_generator.uniform(
+        *GROWTH_TRAINING_RANGES["temperature"],
+        n_samples,
+    )
+    humidity = random_generator.uniform(
+        *GROWTH_TRAINING_RANGES["humidity"],
+        n_samples,
+    )
+    soil_moisture = random_generator.uniform(
+        *GROWTH_TRAINING_RANGES["moisture"],
+        n_samples,
+    )
+
+    s_t = np.exp(-((temperature - 30) ** 2) / 50)
+    s_h = np.exp(-((humidity - 80) ** 2) / 100)
+    s_m = np.exp(-((soil_moisture - 60) ** 2) / 200)
+    esi = (0.3 * s_t) + (0.3 * s_h) + (0.4 * s_m)
+
+    stem_diameter = 25.0 * np.exp(
+        -4.0 * np.exp(-0.15 * (age_months * esi))
+    )
+    noise = np.random.normal(0, 0.15, size=n_samples)
+    bark_thickness = np.clip(0.5 + (stem_diameter * 0.04) + noise, 0.2, 2.5)
 
     dataframe = pd.DataFrame(
-        training_data
+        {
+            "Plant_Age": age_months,
+            "Temperature": temperature,
+            "Humidity": humidity,
+            "Soil_Moisture": soil_moisture,
+        }
     )
 
-    dataframe["Growth_Value"] = (
-        dataframe["Temperature"] * 0.2
-        + dataframe["Humidity"] * 0.4
-        + dataframe["Soil_Moisture"] * 0.5
-    )
+    return dataframe, bark_thickness
 
-    features = dataframe[
-        [
-            "Temperature",
-            "Humidity",
-            "Soil_Moisture",
-        ]
-    ]
 
-    target = dataframe["Growth_Value"]
-
-    model = RandomForestRegressor(
-        n_estimators=100,
+def train_growth_model() -> tuple[RandomForestRegressor, Dict[str, Any]]:
+    features, target = build_growth_training_data()
+    (
+        training_features,
+        evaluation_features,
+        training_target,
+        evaluation_target,
+    ) = train_test_split(
+        features,
+        target,
+        test_size=0.20,
         random_state=42,
     )
 
-    model.fit(
-        features,
-        target,
+    evaluation_model = RandomForestRegressor(
+        n_estimators=100,
+        random_state=42,
+        n_jobs=-1,
     )
+    evaluation_model.fit(training_features, training_target)
+    evaluation_predictions = evaluation_model.predict(evaluation_features)
 
-    return model
+    # Note: The R2 and MAE metrics below reflect variance-adjusted synthetic baselines 
+    # pending real CSV data ingestion.
+    metrics: Dict[str, Any] = {
+        "model_name": "Random Forest Regressor",
+        "model_role": "Environmental growth estimator",
+        "data_source": "Formula-generated growth data",
+        "training_samples": int(len(features)),
+        "evaluation_samples": int(len(evaluation_features)),
+        "r2_score": round(
+            float(r2_score(evaluation_target, evaluation_predictions)),
+            4,
+        ),
+        "mean_absolute_error_mm": round(
+            float(
+                mean_absolute_error(
+                    evaluation_target,
+                    evaluation_predictions,
+                )
+            ),
+            4,
+        ),
+        "training_ranges": {
+            name: {"minimum": limits[0], "maximum": limits[1]}
+            for name, limits in GROWTH_TRAINING_RANGES.items()
+        },
+    }
+
+    final_model = RandomForestRegressor(
+        n_estimators=100,
+        random_state=42,
+        n_jobs=-1,
+    )
+    final_model.fit(features, target)
+
+    return final_model, metrics
 
 
-growth_model = train_growth_model()
+def interpret_growth_value(growth_value: float) -> Dict[str, str]:
+    if growth_value >= 80:
+        return {
+            "status": "Ready to Harvest",
+            "alert": "Harvest Recommended",
+            "recommendation": "This plant is suitable for harvesting.",
+        }
+
+    if growth_value >= 50:
+        return {
+            "status": "Growing",
+            "alert": "Normal Growth",
+            "recommendation": "Continue monitoring the plant.",
+        }
+
+    return {
+        "status": "Initial Stage",
+        "alert": "Low Growth",
+        "recommendation": "The plant is not ready for harvesting.",
+    }
+
+
+growth_model, growth_model_metrics = train_growth_model()
 
 
 # =========================================================
@@ -1153,7 +1405,15 @@ def preprocess_disease_image(
     )
 
 
-disease_model_hash = ""
+disease_model_hash  = ""
+
+# ----- FAISS retrieval globals (set during model startup) --------------------
+# embedding_model : truncated at global_average_pooling  -> (None, 1280)
+# faiss_index     : faiss.IndexFlatIP holding L2-normalised 1280-d vectors
+# faiss_label_map : {"0": "healthy_cinnamon", ...} mapping index id -> class
+embedding_model : tf.keras.Model | None = None
+faiss_index     : faiss.Index    | None = None
+faiss_label_map : dict           | None = None
 
 
 try:
@@ -1199,6 +1459,54 @@ try:
         DISEASE_MODEL_PATH
     )
 
+    # ------------------------------------------------------------------
+    # Build 1280-d embedding extractor (truncated at global_average_pooling)
+    # This model shares weights with disease_model — no double loading.
+    # ------------------------------------------------------------------
+    try:
+        pool_layer = disease_model.get_layer("global_average_pooling")
+    except ValueError:
+        # Layer may be nested inside efficientnetb0 sub-model.
+        eff_sub   = disease_model.get_layer("efficientnetb0")
+        pool_layer = eff_sub.get_layer("global_average_pooling")
+
+    embedding_model = tf.keras.Model(
+        inputs  = disease_model.input,
+        outputs = pool_layer.output,
+        name    = "embedding_extractor",
+    )
+
+    print(
+        "Embedding extractor output shape:",
+        embedding_model.output_shape,
+    )
+
+    # ------------------------------------------------------------------
+    # Load FAISS index and label map (optional — degrades gracefully)
+    # ------------------------------------------------------------------
+    if FAISS_INDEX_PATH.exists() and FAISS_LABELMAP_PATH.exists():
+        faiss_index = faiss.read_index(str(FAISS_INDEX_PATH))
+
+        with open(FAISS_LABELMAP_PATH, "r", encoding="utf-8") as f:
+            faiss_label_map = json.load(f)
+
+        print(
+            "FAISS index loaded:",
+            faiss_index.ntotal,
+            "vectors, dim",
+            faiss_index.d,
+        )
+        print(
+            "FAISS label map entries:",
+            len(faiss_label_map),
+        )
+    else:
+        print(
+            "[WARN] FAISS index not found — "
+            "running in softmax-only mode. "
+            "Run build_faiss_index.py to enable retrieval."
+        )
+
     print("Disease model loaded successfully.")
     print("Disease model file:", DISEASE_MODEL_PATH.name)
     print(
@@ -1222,8 +1530,11 @@ try:
     print("Disease classes:", class_names)
 
 except Exception as error:
-    disease_model = None
-    class_names = []
+    disease_model   = None
+    embedding_model = None
+    faiss_index     = None
+    faiss_label_map = None
+    class_names     = []
 
     print(
         "Disease model load error:",
@@ -1352,13 +1663,7 @@ def health_check() -> Dict[str, Any]:
 @app.get("/metrics")
 @app.get("/metrics/")
 def get_metrics() -> Dict[str, Any]:
-    return {
-        "model_name": (
-            "Random Forest Regressor"
-        ),
-        "accuracy_percentage": 92.5,
-        "training_samples": 300,
-    }
+    return growth_model_metrics.copy()
 
 
 # =========================================================
@@ -1602,6 +1907,43 @@ def latest_iot_data() -> Dict[str, Any]:
 
 
 # =========================================================
+# ROBOTIC HARVESTING
+# =========================================================
+
+@app.post("/api/robotic-harvest/cut-depth", response_model=Union[ApprovedCutResponse, BlockedCutResponse])
+def robotic_harvest_cut_depth(data: RoboticCutRequest):
+    input_features = np.array([[data.plant_age_months, data.temperature, data.humidity, data.moisture]])
+
+    predictions = []
+    for estimator in growth_model.estimators_:
+        predictions.append(estimator.predict(input_features)[0])
+        
+    predictions = np.array(predictions)
+    mu_thickness = np.mean(predictions)
+    sigma_uncertainty = np.std(predictions)
+
+    model_confidence = 1.0 - ((sigma_uncertainty / max(mu_thickness, 1e-4)) * 1.5)
+    model_confidence = max(0.0, min(1.0, model_confidence))
+
+    if model_confidence < 0.85:
+        return BlockedCutResponse(
+            cut_permission="BLOCKED",
+            reason="LOW_MODEL_CONFIDENCE"
+        )
+
+    commanded_depth = mu_thickness - (1.5 * sigma_uncertainty) - 0.10
+    commanded_depth = max(0.0, commanded_depth)
+
+    return ApprovedCutResponse(
+        predicted_bark_thickness_mm=round(float(mu_thickness), 2),
+        model_uncertainty_mm=round(float(sigma_uncertainty), 2),
+        commanded_cut_depth_mm=round(float(commanded_depth), 2),
+        model_confidence=round(float(model_confidence), 2),
+        cut_permission="APPROVED"
+    )
+
+
+# =========================================================
 # GROWTH PREDICTION
 # =========================================================
 
@@ -1617,6 +1959,7 @@ def growth_predict(
         pd.DataFrame(
             [
                 {
+                    "Plant_Age": data.plant_age_months,
                     "Temperature": data.temperature,
                     "Humidity": data.humidity,
                     "Soil_Moisture": data.moisture,
@@ -1625,28 +1968,15 @@ def growth_predict(
         )
     )[0]
 
-    bark_thickness = prediction * 0.15
+    # The new model outputs raw bark thickness (approx 0.5mm to 1.5mm).
+    # We map this back to a 0-100 scale for the UI's "Growth Value" percentage.
+    bark_thickness = float(prediction)
+    growth_value = max(0.0, min(100.0, (bark_thickness - 0.5) / 1.0 * 100.0))
 
-    if prediction >= 80:
-        growth_status = "Ready to Harvest"
-        alert = "Harvest Recommended"
-        recommendation = (
-            "This plant is suitable for harvesting."
-        )
-
-    elif prediction >= 50:
-        growth_status = "Growing"
-        alert = "Normal Growth"
-        recommendation = (
-            "Continue monitoring the plant."
-        )
-
-    else:
-        growth_status = "Initial Stage"
-        alert = "Low Growth"
-        recommendation = (
-            "The plant is not ready for harvesting."
-        )
+    growth_interpretation = interpret_growth_value(growth_value)
+    growth_status = growth_interpretation["status"]
+    alert = growth_interpretation["alert"]
+    recommendation = growth_interpretation["recommendation"]
 
     prediction_time = datetime.now().strftime(
         "%Y-%m-%d %H:%M:%S"
@@ -1664,7 +1994,7 @@ def growth_predict(
         "humidity": data.humidity,
         "moisture": data.moisture,
         "growth_value": round(
-            float(prediction),
+            float(growth_value),
             2,
         ),
         "bark_thickness_mm": round(
@@ -1679,6 +2009,7 @@ def growth_predict(
         "status": growth_status,
         "alert": alert,
         "recommendation": recommendation,
+        "model_scope": "Supported-domain environmental growth estimate",
         "prediction_time": prediction_time,
         "created_at": datetime.now().isoformat(),
     }
@@ -1747,110 +2078,35 @@ def growth_predict(
 # HARVEST READINESS
 # =========================================================
 
-def calculate_harvest_readiness(
-    data: HarvestData,
-) -> Dict[str, Any]:
-    best_harvest_months = [
-        "May",
-        "June",
-        "October",
-        "November",
-    ]
+def train_harvest_classifier() -> RandomForestClassifier:
+    np.random.seed(42)
+    n_samples = 2000
 
-    score = 0
+    age_months = np.random.uniform(6, 60, n_samples)
+    rainfall_index = np.random.uniform(0, 100, n_samples)
+    phenology_stage = np.random.choice([0, 1, 2], n_samples)
+    bark_browning_percent = np.random.uniform(0, 100, n_samples)
 
-    if data.age >= 18:
-        score += 20
-    elif data.age >= 12:
-        score += 12
-    else:
-        score += 5
+    peeling_test_passed = np.ones(n_samples, dtype=int)
+    peeling_test_passed[np.isin(phenology_stage, [0, 1])] = 0
+    peeling_test_passed[rainfall_index < 40] = 0
+    peeling_test_passed[age_months < 24] = 0
+    peeling_test_passed[bark_browning_percent < 75] = 0
 
-    if data.growth_rate >= 80:
-        score += 20
-    elif data.growth_rate >= 60:
-        score += 12
-    else:
-        score += 5
+    X = pd.DataFrame({
+        "age_months": age_months,
+        "rainfall_index": rainfall_index,
+        "phenology_stage": phenology_stage,
+        "bark_browning_percent": bark_browning_percent
+    })
+    y = pd.Series(peeling_test_passed, name="peeling_test_passed")
 
-    if data.bark_thickness >= 4:
-        score += 20
-    elif data.bark_thickness >= 3:
-        score += 12
-    else:
-        score += 5
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(X, y)
 
-    if (
-        data.disease_status.strip().lower()
-        == "healthy"
-    ):
-        score += 15
-    else:
-        score += 3
+    return model
 
-    if data.current_month in best_harvest_months:
-        score += 10
-    else:
-        score += 4
-
-    quality_average = (
-        data.bark_quality
-        + data.maturity_level
-        + data.health_status
-    ) / 3
-
-    if quality_average >= 85:
-        score += 15
-    elif quality_average >= 70:
-        score += 10
-    else:
-        score += 5
-
-    final_score = min(
-        round(score),
-        100,
-    )
-
-    if final_score >= 80:
-        readiness_status = "Ready for Harvest"
-
-        recommendation = (
-            "The plant is suitable for harvesting. "
-            "The result can be sent to the robotic "
-            "harvesting module."
-        )
-
-        robotic_action = "APPROVED"
-
-    elif final_score >= 60:
-        readiness_status = "Almost Ready"
-
-        recommendation = (
-            "The plant is close to harvest readiness. "
-            "Continue monitoring before robotic harvesting."
-        )
-
-        robotic_action = "WAIT"
-
-    else:
-        readiness_status = "Not Ready"
-
-        recommendation = (
-            "The plant is not suitable for harvesting yet."
-        )
-
-        robotic_action = "BLOCKED"
-
-    return {
-        "readiness_score": final_score,
-        "readiness_status": readiness_status,
-        "recommendation": recommendation,
-        "robotic_action": robotic_action,
-        "quality_average": round(
-            quality_average,
-            2,
-        ),
-    }
+harvest_ml_model = train_harvest_classifier()
 
 
 @app.post("/harvest-readiness")
@@ -1861,41 +2117,45 @@ def harvest_readiness(
         get_current_user
     ),
 ) -> Dict[str, Any]:
-    calculated = calculate_harvest_readiness(
-        data
-    )
+    features = np.array([[
+        data.age_months,
+        data.rainfall_index,
+        data.phenology_stage,
+        data.bark_browning_percent
+    ]])
+
+    probability = float(harvest_ml_model.predict_proba(features)[0][1])
+
+    if probability >= 0.80:
+        status_text = "Ready for Harvest"
+        action = "APPROVED"
+        status_message = "The Machine Learning model indicates optimal conditions for a clean bark peel."
+    elif probability >= 0.60:
+        status_text = "Almost Ready"
+        action = "WAIT"
+        status_message = "Conditions are approaching optimal. Await slightly more rainfall or bark browning."
+    else:
+        status_text = "Not Ready"
+        action = "BLOCKED"
+        status_message = "Conditions are currently unfavorable. Harvesting now will likely result in bark tearing."
+
+    final_score = round(probability * 100, 2)
+    prediction_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     result: Dict[str, Any] = {
         "user_id": current_user["uid"],
         "user_email": current_user["email"],
         "user_name": current_user["fullName"],
         "plant_id": data.plant_id,
-        "age": data.age,
-        "growth_rate": data.growth_rate,
-        "bark_thickness": data.bark_thickness,
-        "disease_status": data.disease_status,
-        "current_month": data.current_month,
-        "bark_quality": data.bark_quality,
-        "maturity_level": data.maturity_level,
-        "health_status": data.health_status,
-        "quality_average": calculated[
-            "quality_average"
-        ],
-        "readiness_score": calculated[
-            "readiness_score"
-        ],
-        "readiness_status": calculated[
-            "readiness_status"
-        ],
-        "recommendation": calculated[
-            "recommendation"
-        ],
-        "robotic_action": calculated[
-            "robotic_action"
-        ],
-        "prediction_time": datetime.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
+        "age_months": data.age_months,
+        "rainfall_index": data.rainfall_index,
+        "phenology_stage": data.phenology_stage,
+        "bark_browning_percent": data.bark_browning_percent,
+        "final_score": final_score,
+        "status": status_text,
+        "action": action,
+        "status_message": status_message,
+        "prediction_time": prediction_time,
         "created_at": datetime.now().isoformat(),
     }
 
@@ -1903,57 +2163,26 @@ def harvest_readiness(
         "harvest_readiness_predictions",
         result,
     )
-
-    result["database_saved"] = (
-        firebase_result["saved"]
-    )
-
-    result["record_id"] = (
-        firebase_result["id"]
-    )
-
-    result["csv_saved"] = (
-        save_harvest_to_csv(result)
-    )
-
-    result["email_notification"] = (
-        send_user_notification(
-            current_user=current_user,
-            setting_name="harvestAlerts",
-            subject=(
-                f"CinnaAI harvest readiness - "
-                f"{data.plant_id}"
-            ),
-            title="Harvest readiness result",
-            message=(
-                "A new harvest readiness "
-                "assessment has been completed."
-            ),
-            details={
-                "Plant ID": data.plant_id,
-                "Readiness score": (
-                    f"{result['readiness_score']}%"
-                ),
-                "Readiness status": result[
-                    "readiness_status"
-                ],
-                "Robotic action": result[
-                    "robotic_action"
-                ],
-                "Bark thickness": (
-                    f"{data.bark_thickness} mm"
-                ),
-                "Plant age": (
-                    f"{data.age} months"
-                ),
-                "Prediction time": result[
-                    "prediction_time"
-                ],
-            },
-        )
+    result["database_saved"] = firebase_result["saved"]
+    result["record_id"] = firebase_result["id"]
+    result["csv_saved"] = save_harvest_to_csv(result)
+    
+    result["email_notification"] = send_user_notification(
+        current_user=current_user,
+        setting_name="harvestAlerts",
+        subject=f"CinnaAI harvest readiness - {data.plant_id}",
+        title="Harvest readiness result",
+        message="A new ML-powered harvest readiness assessment has been completed.",
+        details={
+            "Plant ID": data.plant_id,
+            "Readiness score": f"{final_score}%",
+            "Readiness status": status_text,
+            "Prediction time": prediction_time,
+        },
     )
 
     return result
+
 
 
 # =========================================================
@@ -2017,6 +2246,65 @@ async def disease_predict(
                 detail=str(error),
             ) from error
 
+        # FAISS is retained as a secondary validation metric. Its cosine
+        # similarity values are not probabilities and never replace the
+        # EfficientNet softmax decision or confidence fields.
+        faiss_retrieval: Dict[str, Any] = {
+            "available": False,
+            "accepted": False,
+            "threshold": FAISS_SIMILARITY_THRESHOLD,
+            "top_label": None,
+            "top_similarity": None,
+            "second_label": None,
+            "second_similarity": None,
+        }
+
+        if (
+            embedding_model is not None
+            and faiss_index is not None
+            and faiss_label_map is not None
+            and faiss_index.ntotal > 0
+        ):
+            raw_embedding = np.asarray(
+                embedding_model.predict(image_batch, verbose=0),
+                dtype=np.float32,
+            )
+            faiss.normalize_L2(raw_embedding)
+
+            neighbor_count = min(2, faiss_index.ntotal)
+            distances, neighbor_indices = faiss_index.search(
+                raw_embedding,
+                k=neighbor_count,
+            )
+            top_index = int(neighbor_indices[0][0])
+            top_label = faiss_label_map.get(str(top_index))
+            top_similarity = float(distances[0][0])
+            second_label: str | None = None
+            second_similarity: float | None = None
+
+            if neighbor_count > 1:
+                second_index = int(neighbor_indices[0][1])
+                second_label = faiss_label_map.get(str(second_index))
+                second_similarity = float(distances[0][1])
+
+            label_is_supported = top_label in EXPECTED_DISEASE_CLASS_NAMES
+            faiss_retrieval = {
+                "available": True,
+                "accepted": bool(
+                    label_is_supported
+                    and top_similarity >= FAISS_SIMILARITY_THRESHOLD
+                ),
+                "threshold": FAISS_SIMILARITY_THRESHOLD,
+                "top_label": top_label if label_is_supported else None,
+                "top_similarity": top_similarity,
+                "second_label": (
+                    second_label
+                    if second_label in EXPECTED_DISEASE_CLASS_NAMES
+                    else None
+                ),
+                "second_similarity": second_similarity,
+            }
+
         probabilities = np.asarray(
             disease_model.predict(
                 image_batch,
@@ -2057,9 +2345,7 @@ async def disease_predict(
             - second_confidence
         )
 
-        detected_class = class_names[
-            best_index
-        ]
+        detected_class = class_names[best_index]
 
         top_predictions = [
             {
@@ -2076,9 +2362,7 @@ async def disease_predict(
         specialist_result = SpecialistPredictionResult(
             predicted_class=detected_class,
             confidence=best_confidence,
-            second_class=class_names[
-                second_index
-            ],
+            second_class=class_names[second_index],
             second_confidence=second_confidence,
             confidence_margin=confidence_margin,
             top_predictions=[
@@ -2112,58 +2396,27 @@ async def disease_predict(
             "uploaded_filename": file.filename or "",
         }
 
-        if (
-            best_confidence
-            < CONFIDENCE_THRESHOLD
-            or confidence_margin
-            < MARGIN_THRESHOLD
-        ):
+        low_confidence = (
+            best_confidence < CONFIDENCE_THRESHOLD
+            or confidence_margin < MARGIN_THRESHOLD
+        )
+        classification_data = {
+            "prediction": detected_class,
+            "detected_class": detected_class,
+            "confidence": f"{best_confidence * 100:.2f}%",
+            "confidence_score": best_confidence,
+            "confidence_margin": confidence_margin,
+            "top_predictions": top_predictions,
+            "low_confidence": low_confidence,
+            "review_recommended": low_confidence,
+        }
+
+        if detected_class == "non_cinnamon":
             result: Dict[str, Any] = {
                 **common_user_data,
-                "status": "uncertain",
-                "prediction": "unknown",
-                "display_prediction": (
-                    "Uncertain Result"
-                ),
-                "detected_class": detected_class,
-                "confidence": (
-                    f"{best_confidence * 100:.2f}%"
-                ),
-                "confidence_score": best_confidence,
-                "confidence_margin": confidence_margin,
-                "top_predictions": top_predictions,
-                "message": (
-                    "The model could not identify this "
-                    "leaf condition with sufficient confidence."
-                ),
-                "diagnosis": (
-                    "The prediction is uncertain and should "
-                    "not be treated as a confirmed diagnosis."
-                ),
-                "symptoms": "Not determined",
-                "solutions": [
-                    "Upload a clear, well-lit cinnamon leaf image.",
-                    "Request expert review if symptoms remain visible.",
-                ],
-                "prevention": [
-                    "Photograph one leaf clearly against a simple background."
-                ],
-                "severity": "Unknown",
-            }
-
-        elif detected_class == "non_cinnamon":
-            result = {
-                **common_user_data,
+                **classification_data,
                 "status": "rejected",
-                "prediction": "non_cinnamon",
                 "display_prediction": "Non-Cinnamon",
-                "detected_class": detected_class,
-                "confidence": (
-                    f"{best_confidence * 100:.2f}%"
-                ),
-                "confidence_score": best_confidence,
-                "confidence_margin": confidence_margin,
-                "top_predictions": top_predictions,
                 "message": (
                     "The uploaded image does not appear to "
                     "show a supported cinnamon leaf."
@@ -2188,18 +2441,11 @@ async def disease_predict(
 
             result = {
                 **common_user_data,
+                **classification_data,
                 "status": "healthy",
-                "prediction": detected_class,
                 "display_prediction": information[
                     "label"
                 ],
-                "detected_class": detected_class,
-                "confidence": (
-                    f"{best_confidence * 100:.2f}%"
-                ),
-                "confidence_score": best_confidence,
-                "confidence_margin": confidence_margin,
-                "top_predictions": top_predictions,
                 "message": (
                     "No supported cinnamon disease was detected."
                 ),
@@ -2227,18 +2473,11 @@ async def disease_predict(
 
             result = {
                 **common_user_data,
+                **classification_data,
                 "status": "disease_detected",
-                "prediction": detected_class,
                 "display_prediction": information[
                     "label"
                 ],
-                "detected_class": detected_class,
-                "confidence": (
-                    f"{best_confidence * 100:.2f}%"
-                ),
-                "confidence_score": best_confidence,
-                "confidence_margin": confidence_margin,
-                "top_predictions": top_predictions,
                 "message": (
                     "A supported cinnamon leaf condition was detected."
                 ),
@@ -2262,6 +2501,7 @@ async def disease_predict(
         # Shadow-mode metadata is additive. The established EfficientNet
         # result above remains the final application decision.
         result.update(hybrid_metadata)
+        result["faiss_retrieval"] = faiss_retrieval
 
         firebase_result = save_to_firebase(
             "disease_predictions",
@@ -2443,3 +2683,49 @@ def admin_harvest_history(
         "harvest_readiness_predictions",
         current_user,
     )
+
+
+# =========================================================
+# ROBOTIC MACHINE RELAY ENDPOINTS
+# =========================================================
+
+@app.get("/robotic-machine/status/")
+def get_robotic_machine_status(
+    current_user: Dict[str, Any] = Depends(
+        get_current_user
+    ),
+) -> Dict[str, Any]:
+    connected = (
+        esp32_serial is not None
+        and esp32_serial.is_open
+    )
+
+    return {
+        "connected": connected,
+        "serial_port_configured": bool(ESP32_SERIAL_PORT),
+        "relays": relay_states.copy(),
+    }
+
+
+@app.post("/robotic-machine/relay/")
+def control_robotic_machine_relay(
+    command: RelayCommand,
+    current_user: Dict[str, Any] = Depends(
+        get_current_user
+    ),
+) -> Dict[str, Any]:
+    esp32_command = (
+        f"{command.relay.upper()} "
+        f"{command.state.upper()}"
+    )
+
+    esp32_response = send_esp32_command(esp32_command)
+    relay_states[command.relay] = command.state == "on"
+
+    return {
+        "success": True,
+        "command": esp32_command,
+        "esp32_response": esp32_response,
+        "connected": True,
+        "relays": relay_states.copy(),
+    }

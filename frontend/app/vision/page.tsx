@@ -576,7 +576,7 @@ export default function VisionPage() {
 
                     <p className="mt-2 text-xs leading-5 text-amber-700">
                       AI predictions are provided
-                      for research and monitoring
+                      for advanced monitoring
                       purposes. Consult an
                       agricultural specialist
                       before applying treatments.

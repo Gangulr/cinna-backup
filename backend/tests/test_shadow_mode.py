@@ -1,4 +1,6 @@
+import os
 import unittest
+from unittest.mock import patch
 
 from hybrid_disease.ontology import DiseaseOntology
 from hybrid_disease.orchestrator import (
@@ -43,6 +45,16 @@ def make_orchestrator(service: FakeGeminiService) -> HybridDiseaseOrchestrator:
 
 
 class ShadowModeTests(unittest.IsolatedAsyncioTestCase):
+    def test_environment_cannot_activate_unvalidated_fusion(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"HYBRID_SHADOW_MODE": "false"},
+            clear=False,
+        ):
+            config = HybridOrchestratorConfig.from_environment()
+
+        self.assertTrue(config.shadow_mode)
+
     async def test_strong_prediction_skips_gemini(self) -> None:
         service = FakeGeminiService()
         orchestrator = make_orchestrator(service)

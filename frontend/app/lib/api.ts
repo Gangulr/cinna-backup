@@ -91,9 +91,10 @@ async function apiRequest<T>(
       typeof responseData === "object" &&
       "detail" in responseData
     ) {
-      errorMessage = String(
-        (responseData as { detail: unknown }).detail
-      );
+      const detail = (responseData as { detail: unknown }).detail;
+      errorMessage = Array.isArray(detail)
+        ? detail.map((e: any) => `${e.loc?.join('.') || 'Error'}: ${e.msg}`).join(', ')
+        : String(detail || 'Request failed');
     } else if (
       responseData &&
       typeof responseData === "object" &&

@@ -253,7 +253,7 @@ export default function Dashboard() {
         <div className="page-shell">
           <div>
             <h1 className="page-title">
-              Research Analytics Overview
+              Advanced Analytics Overview
             </h1>
 
             <p className="page-subtitle">
@@ -796,7 +796,7 @@ export default function Dashboard() {
                 <div className="rounded-lg border border-amber-200 bg-white p-4">
                   <div className="flex items-center justify-between">
                     <p className="kpi-label">
-                      Research Alert
+                      System Alert
                     </p>
 
                     <span className="badge-warning">

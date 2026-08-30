@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { apiGet, apiPost } from "@/app/lib/api";
 import {
   Camera,
   ScanSearch,
@@ -23,6 +24,26 @@ import {
   Loader2,
 } from "lucide-react";
 
+type RelayName = "r1" | "r2";
+type RelaySwitchState = "on" | "off";
+type HarvestAction = "start" | "stop";
+
+type RelayStates = Record<RelayName, boolean>;
+
+interface RelayStatusResponse {
+  connected: boolean;
+  serial_port_configured?: boolean;
+  relays?: Partial<RelayStates>;
+}
+
+interface RelayCommandResponse extends RelayStatusResponse {
+  success: boolean;
+  command?: string;
+  esp32_response?: string;
+}
+
+const RELAY_NAMES: RelayName[] = ["r1", "r2"];
+
 export default function AIGuidedRoboticMachine() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,6 +60,16 @@ export default function AIGuidedRoboticMachine() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
+  const [relays, setRelays] = useState<RelayStates>({
+    r1: false,
+    r2: false,
+  });
+  const [relayConnected, setRelayConnected] = useState(false);
+  const [portConfigured, setPortConfigured] = useState(true);
+  const [loadingRelay, setLoadingRelay] = useState<RelayName | null>(null);
+  const [harvestLoading, setHarvestLoading] = useState<HarvestAction | null>(null);
+  const [relayMessage, setRelayMessage] = useState("");
+  const [relayError, setRelayError] = useState("");
 
   const coordinates = useMemo(
     () => ({
@@ -85,6 +116,102 @@ export default function AIGuidedRoboticMachine() {
 
     getAvailableCameras();
   }, []);
+
+  const loadRelayStatus = useCallback(async () => {
+    try {
+      const data = await apiGet<RelayStatusResponse>(
+        "/robotic-machine/status/"
+      );
+
+      setRelayConnected(Boolean(data.connected));
+      setPortConfigured(data.serial_port_configured !== false);
+      setRelays({
+        r1: Boolean(data.relays?.r1),
+        r2: Boolean(data.relays?.r2),
+      });
+      setRelayError("");
+    } catch (requestError) {
+      setRelayConnected(false);
+      setRelayError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to retrieve the ESP32 status."
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRelayStatus();
+
+    const statusTimer = window.setInterval(() => {
+      void loadRelayStatus();
+    }, 5000);
+
+    return () => window.clearInterval(statusTimer);
+  }, [loadRelayStatus]);
+
+  const sendRelayCommand = useCallback(
+    async (relay: RelayName, state: RelaySwitchState) => {
+      const data = await apiPost<RelayCommandResponse>(
+        "/robotic-machine/relay/",
+        { relay, state }
+      );
+
+      setRelayConnected(Boolean(data.connected));
+
+      if (data.relays) {
+        setRelays({
+          r1: Boolean(data.relays.r1),
+          r2: Boolean(data.relays.r2),
+        });
+      }
+
+      return data;
+    },
+    []
+  );
+
+  const controlRelay = async (
+    relay: RelayName,
+    state: RelaySwitchState
+  ) => {
+    try {
+      setLoadingRelay(relay);
+      setRelayError("");
+      setRelayMessage("");
+
+      const result = await sendRelayCommand(relay, state);
+      const command =
+        result.command || `${relay.toUpperCase()} ${state.toUpperCase()}`;
+
+      setRelayMessage(
+        `${command} — ${result.esp32_response || "Command completed"}`
+      );
+    } catch (requestError) {
+      setRelayConnected(false);
+      setRelayError(
+        requestError instanceof Error
+          ? requestError.message
+          : "The relay command failed."
+      );
+    } finally {
+      setLoadingRelay(null);
+    }
+  };
+
+  const turnOffAllRelays = useCallback(async () => {
+    const results = await Promise.allSettled([
+      sendRelayCommand("r1", "off"),
+      sendRelayCommand("r2", "off"),
+    ]);
+    const rejected = results.find(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+
+    if (rejected) {
+      throw rejected.reason;
+    }
+  }, [sendRelayCommand]);
 
   const startCamera = async () => {
     try {
@@ -200,21 +327,86 @@ export default function AIGuidedRoboticMachine() {
     }
   };
 
-  const startHarvest = () => {
-    if (!detected || emergencyStop) return;
-    setConfirmed(true);
-    setStep(1);
+  const startHarvest = async () => {
+    if (!detected || emergencyStop || harvestLoading) return;
+
+    try {
+      setHarvestLoading("start");
+      setRelayError("");
+      setRelayMessage("");
+
+      await sendRelayCommand("r1", "on");
+
+      try {
+        await sendRelayCommand("r2", "on");
+      } catch (secondRelayError) {
+        try {
+          await sendRelayCommand("r1", "off");
+        } catch (rollbackError) {
+          console.error("R1 rollback failed:", rollbackError);
+        }
+        throw secondRelayError;
+      }
+
+      setConfirmed(true);
+      setStep(1);
+      setRelayMessage("Harvest started — R1 ON and R2 ON.");
+    } catch (requestError) {
+      setConfirmed(false);
+      setStep(0);
+      setRelayConnected(false);
+      setRelayError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to start harvesting."
+      );
+    } finally {
+      setHarvestLoading(null);
+    }
   };
 
-  const stopHarvest = () => {
-    setConfirmed(false);
-    setStep(0);
+  const stopHarvest = async () => {
+    if (harvestLoading) return;
+
+    try {
+      setHarvestLoading("stop");
+      setRelayError("");
+      setRelayMessage("");
+      await turnOffAllRelays();
+      setRelayMessage("Harvest stopped — R1 OFF and R2 OFF.");
+    } catch (requestError) {
+      setRelayError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to stop all relays."
+      );
+    } finally {
+      setConfirmed(false);
+      setStep(0);
+      setHarvestLoading(null);
+      void loadRelayStatus();
+    }
   };
 
-  const emergencyStopAction = () => {
+  const emergencyStopAction = async () => {
     setEmergencyStop(true);
     setConfirmed(false);
     setStep(0);
+
+    try {
+      setRelayError("");
+      setRelayMessage("");
+      await turnOffAllRelays();
+      setRelayMessage("Emergency stop activated — all relays OFF.");
+    } catch (requestError) {
+      setRelayError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Emergency stop could not switch off every relay."
+      );
+    } finally {
+      void loadRelayStatus();
+    }
   };
 
   const resetAll = () => {
@@ -301,12 +493,12 @@ export default function AIGuidedRoboticMachine() {
             <div className="rounded-lg border border-slate-200/60 bg-white p-4">
               <div className="flex items-center justify-between">
                 <p className="kpi-label">Machine Status</p>
-                <span className={confirmed ? "badge-healthy" : "badge-info"}>
-                  {confirmed ? "Active" : "Ready"}
+                <span className={relayConnected ? "badge-healthy" : "badge-danger"}>
+                  {relayConnected ? "Connected" : "Disconnected"}
                 </span>
               </div>
               <p className="mt-2 text-lg font-bold text-slate-900">
-                {confirmed ? "Active" : "Ready"}
+                {confirmed ? "Harvesting" : "Ready"}
               </p>
             </div>
 
@@ -336,29 +528,142 @@ export default function AIGuidedRoboticMachine() {
           className="flex flex-wrap gap-3"
         >
           <button
-            onClick={startHarvest}
-            disabled={!detected || emergencyStop || confirmed}
+            onClick={() => void startHarvest()}
+            disabled={
+              !detected ||
+              emergencyStop ||
+              confirmed ||
+              Boolean(harvestLoading)
+            }
             className="btn-primary"
           >
-            <Play className="h-4 w-4" /> Start Harvest
+            {harvestLoading === "start" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Play className="h-4 w-4" />
+            )}
+            {harvestLoading === "start" ? "Starting…" : "Start Harvest"}
           </button>
 
           <button
-            onClick={stopHarvest}
-            disabled={!confirmed || emergencyStop}
+            onClick={() => void stopHarvest()}
+            disabled={
+              (!confirmed && !relays.r1 && !relays.r2) ||
+              Boolean(harvestLoading)
+            }
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-all duration-200 hover:bg-amber-600 hover:shadow disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Square className="h-3.5 w-3.5" /> Stop
+            {harvestLoading === "stop" ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Square className="h-3.5 w-3.5" />
+            )}
+            {harvestLoading === "stop" ? "Stopping…" : "Stop"}
           </button>
 
           <button
-            onClick={emergencyStopAction}
+            onClick={() => void emergencyStopAction()}
             disabled={emergencyStop}
             className="btn-danger"
           >
             <AlertOctagon className="h-4 w-4" /> Emergency Stop
           </button>
         </motion.div>
+
+        {/* ESP32 Relay Control Panel */}
+        <motion.section
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.12 }}
+          className="card p-6"
+        >
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">
+                Robotic Machine Control
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                ESP32 USB relay controller
+              </p>
+            </div>
+
+            <span className={relayConnected ? "badge-healthy" : "badge-danger"}>
+              {relayConnected ? "ESP32 Connected" : "ESP32 Disconnected"}
+            </span>
+          </div>
+
+          {!portConfigured && (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              ESP32_SERIAL_PORT is not configured in the backend environment.
+            </div>
+          )}
+
+          {relayError && (
+            <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+              {relayError}
+            </div>
+          )}
+
+          {relayMessage && (
+            <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+              {relayMessage}
+            </div>
+          )}
+
+          <div className="grid gap-5 md:grid-cols-2">
+            {RELAY_NAMES.map((relay) => {
+              const relayNumber = relay === "r1" ? "1" : "2";
+              const isOn = relays[relay];
+              const isLoading = loadingRelay === relay;
+
+              return (
+                <article
+                  key={relay}
+                  className="rounded-xl border border-slate-200/60 bg-white p-5"
+                >
+                  <div className="mb-5 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">
+                        Relay {relayNumber}
+                      </h3>
+                      <p className="text-sm text-slate-500">
+                        GPIO {relay === "r1" ? "5" : "18"}
+                      </p>
+                    </div>
+
+                    <span className={isOn ? "badge-healthy" : "badge-info"}>
+                      {isOn ? "ON" : "OFF"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={
+                        isLoading || isOn || Boolean(harvestLoading)
+                      }
+                      onClick={() => void controlRelay(relay, "on")}
+                      className="btn-primary px-4 py-3"
+                    >
+                      {isLoading ? "Sending…" : `R${relayNumber} ON`}
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={
+                        isLoading || !isOn || Boolean(harvestLoading)
+                      }
+                      onClick={() => void controlRelay(relay, "off")}
+                      className="btn-danger px-4 py-3"
+                    >
+                      {isLoading ? "Sending…" : `R${relayNumber} OFF`}
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </motion.section>
 
         {/* Camera Input Section */}
         <motion.div
@@ -597,7 +902,7 @@ export default function AIGuidedRoboticMachine() {
           </div>
         </motion.div>
 
-        {/* Prototype Performance */}
+        {/* System Performance */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -606,7 +911,7 @@ export default function AIGuidedRoboticMachine() {
         >
           <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-base font-semibold text-slate-900">
-              Prototype Performance
+              System Performance
             </h2>
             <span className="badge-healthy">Test Run Completed</span>
           </div>

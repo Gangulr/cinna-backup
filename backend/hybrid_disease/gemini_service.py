@@ -213,7 +213,7 @@ class GeminiVisionService:
         return await client.aio.models.generate_content(
             model=self.config.model,
             contents=[
-                "Independently analyze this uploaded cinnamon-leaf research image.",
+                "Independently analyze this uploaded cinnamon-leaf image.",
                 types.Part.from_bytes(
                     data=image.canonical_bytes,
                     mime_type=image.mime_type,

@@ -191,7 +191,7 @@ export default function RegisterPage() {
             </div>
 
             <p className="text-sm text-emerald-100/70">
-              CinnaAI Research Platform
+              CinnaAI Platform
             </p>
           </section>
 

@@ -58,9 +58,9 @@ class HybridOrchestratorConfig:
         default_confidence_threshold: float = 0.70,
         default_margin_threshold: float = 0.15,
     ) -> "HybridOrchestratorConfig":
-        # Production fusion is intentionally unavailable in this foundation.
-        # Even if HYBRID_SHADOW_MODE=false is supplied, effective behavior stays
-        # shadow-only until a later, benchmark-approved implementation.
+        # Gemini remains in evaluation mode. Even if
+        # HYBRID_SHADOW_MODE=false is supplied, the baseline prediction is not
+        # replaced without a separately validated fusion implementation.
         return cls(
             confidence_threshold=_read_probability(
                 "HYBRID_SPECIALIST_CONFIDENCE_THRESHOLD",
@@ -194,6 +194,7 @@ class HybridDiseaseOrchestrator:
                 if gemini.status != GeminiVerificationStatus.SUCCESS
                 else None
             )
+
             hybrid = calculate_shadow_counterfactual(
                 specialist,
                 gemini,

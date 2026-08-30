@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import Image from "next/image";
 
 import {
   Upload,
@@ -44,6 +45,10 @@ type DiseasePredictionResult = {
   symptoms?: string;
   solutions?: string[];
   prevention?: string[];
+  decision_source?: "efficientnet";
+  hybrid_used?: boolean;
+  low_confidence?: boolean;
+  review_recommended?: boolean;
 };
 
 const diseaseLabels: Record<string, string> = {
@@ -202,9 +207,6 @@ export default function DiseasePredictor() {
   const isHealthy =
     resultStatus === "healthy";
 
-  const isUncertain =
-    resultStatus === "uncertain";
-
   const isDisease =
     resultStatus === "disease_detected";
 
@@ -219,18 +221,15 @@ export default function DiseasePredictor() {
 
   const displayIsRejected =
     isRejected ||
-    (isUncertain &&
-      candidateClass === "non_cinnamon");
+    candidateClass === "non_cinnamon";
 
   const displayIsHealthy =
     isHealthy ||
-    (isUncertain &&
-      candidateClass === "healthy_cinnamon");
+    candidateClass === "healthy_cinnamon";
 
   const displayIsDisease =
     isDisease ||
-    (isUncertain &&
-      Boolean(candidateClass) &&
+    (Boolean(candidateClass) &&
       candidateClass !== "healthy_cinnamon" &&
       candidateClass !== "non_cinnamon");
 
@@ -245,9 +244,10 @@ export default function DiseasePredictor() {
     : "Waiting for image";
 
   const diseaseType = result
-    ? isUncertain
-      ? candidateLabel
-      : result.display_prediction ||
+    ? result.display_prediction &&
+      result.display_prediction !== "Uncertain Result"
+      ? result.display_prediction
+      : candidateLabel ||
         diseaseLabels[
           result.prediction || ""
         ] ||
@@ -331,9 +331,12 @@ export default function DiseasePredictor() {
 
                 {preview ? (
                   <div className="space-y-3">
-                    <img
+                    <Image
                       src={preview}
                       alt="Uploaded cinnamon plant"
+                      width={176}
+                      height={176}
+                      unoptimized
                       className="mx-auto h-44 w-44 rounded-xl object-cover shadow-sm ring-1 ring-slate-200"
                     />
 
@@ -448,7 +451,7 @@ export default function DiseasePredictor() {
                     {diseaseType}
                   </h3>
 
-                  {result?.message && !isUncertain && (
+                  {result?.message && (
                     <p className="mt-2 text-sm leading-6 text-slate-600">
                       {result.message}
                     </p>
@@ -463,12 +466,20 @@ export default function DiseasePredictor() {
                   <h3 className="mt-2 text-3xl font-bold text-slate-900">
                     {confidence}
                   </h3>
+
+                  {result?.low_confidence && (
+                    <p className="mt-2 text-sm leading-6 text-amber-700">
+                      This is the model&apos;s top classification,
+                      but expert review is recommended because the
+                      confidence or class margin is below the review
+                      threshold.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
 
-          {!isUncertain && (
           <div className="card p-6">
             <h2 className="mb-5 text-base font-semibold text-slate-900">
               Recommendations
@@ -551,9 +562,8 @@ export default function DiseasePredictor() {
               </div>
             )}
           </div>
-          )}
 
-          {result && !isUncertain && (
+          {result && (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="card p-5">
                 <p className="kpi-label">

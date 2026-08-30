@@ -67,7 +67,7 @@ def calculate_shadow_counterfactual(
     version: str,
     fallback_reason: str | None = None,
 ) -> HybridPredictionResult:
-    """Calculate research metadata without altering the baseline result."""
+    """Calculate metadata without altering the baseline result."""
 
     agreement = compare_results(specialist, gemini)
     would_have_status = "uncertain"

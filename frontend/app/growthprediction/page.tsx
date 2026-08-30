@@ -18,6 +18,37 @@ import {
 import ProtectedRoute from "@/app/components/ProtectedRoute";
 import { apiGet, apiPost } from "@/app/lib/api";
 
+type GrowthMetrics = {
+  model_name: string;
+  model_role: string;
+  data_source: string;
+  training_samples: number;
+  evaluation_samples: number;
+  r2_score: number;
+  mean_absolute_error_mm: number;
+};
+
+type SensorResponse = {
+  temperature?: number;
+  humidity?: number;
+  moisture?: number;
+  timestamp?: string;
+  error?: string;
+};
+
+type GrowthResult = {
+  growth_value: number;
+  bark_thickness_mm: number;
+  bark_thickness?: number;
+  harvest_status: string;
+  status?: string;
+  alert: string;
+  recommendation: string;
+  model_scope: string;
+  database_saved: boolean;
+  csv_saved: boolean;
+};
+
 export default function GrowthPredictionPage() {
   const [form, setForm] = useState({
     plant_id: "P-001",
@@ -27,8 +58,10 @@ export default function GrowthPredictionPage() {
     moisture: "",
   });
 
-  const [result, setResult] = useState<any>(null);
-  const [metrics, setMetrics] = useState<any>(null);
+  const [result, setResult] =
+    useState<GrowthResult | null>(null);
+  const [metrics, setMetrics] =
+    useState<GrowthMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [sensorLoading, setSensorLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,8 +70,8 @@ export default function GrowthPredictionPage() {
   useEffect(() => {
     const loadMetrics = async () => {
       try {
-        const data = await apiGet<any>(
-          "/metrics/",
+        const data = await apiGet<GrowthMetrics>(
+          "/metrics",
           false
         );
 
@@ -156,8 +189,8 @@ export default function GrowthPredictionPage() {
       setSensorLoading(true);
       setError("");
 
-      const data = await apiGet<any>(
-        "/latest-iot-data/",
+      const data = await apiGet<SensorResponse>(
+        "/latest-iot-data",
         false
       );
 
@@ -243,8 +276,8 @@ export default function GrowthPredictionPage() {
       setError("");
       setResult(null);
 
-      const data = await apiPost<any>(
-        "/growth-predict/",
+      const data = await apiPost<GrowthResult>(
+        "/growth-predict",
         {
           plant_id: form.plant_id,
           plant_age_months: plantAge,
@@ -308,19 +341,14 @@ export default function GrowthPredictionPage() {
               <div className="card p-5">
                 <div className="flex items-start justify-between">
                   <p className="kpi-label">
-                    Accuracy
+                    Synthetic R²
                   </p>
 
                   <Target className="h-4 w-4 text-emerald-600" />
                 </div>
 
                 <h2 className="kpi-value">
-                  {metrics.accuracy_percentage ??
-                    "-"}
-
-                  <span className="ml-1 text-base font-semibold text-slate-500">
-                    %
-                  </span>
+                  {metrics.r2_score.toFixed(3)}
                 </h2>
               </div>
 
@@ -427,6 +455,7 @@ export default function GrowthPredictionPage() {
                   type="number"
                   name="plant_age_months"
                   min="1"
+                  max="120"
                   value={
                     form.plant_age_months
                   }
@@ -444,8 +473,9 @@ export default function GrowthPredictionPage() {
                 <input
                   type="number"
                   name="temperature"
-                  min="0"
+                  min="0.1"
                   max="60"
+                  step="any"
                   value={form.temperature}
                   onChange={handleChange}
                   className="input-field"
@@ -461,8 +491,9 @@ export default function GrowthPredictionPage() {
                 <input
                   type="number"
                   name="humidity"
-                  min="0"
+                  min="0.1"
                   max="100"
+                  step="any"
                   value={form.humidity}
                   onChange={handleChange}
                   className="input-field"
@@ -480,6 +511,7 @@ export default function GrowthPredictionPage() {
                   name="moisture"
                   min="0"
                   max="100"
+                  step="any"
                   value={form.moisture}
                   onChange={handleChange}
                   className="input-field"

@@ -7,10 +7,20 @@ from hybrid_disease.schemas import (
     GeminiVerificationResult,
     GeminiVerificationStatus,
 )
+from hybrid_disease.ontology import DiseaseOntology
 from tests.helpers import make_observation
 
 
 class GeminiSchemaTests(unittest.TestCase):
+    def test_prompt_fields_match_the_observation_schema(self) -> None:
+        instruction = DiseaseOntology.load().gemini_instruction()
+
+        for field_name in GeminiObservation.model_fields:
+            self.assertIn(field_name, instruction)
+
+        self.assertNotIn('"diagnosis"', instruction)
+        self.assertNotIn('"decision_source"', instruction)
+
     def test_valid_structured_observation(self) -> None:
         observation = make_observation()
         result = GeminiVerificationResult(

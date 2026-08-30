@@ -1,39 +1,39 @@
 {
-  "version": "cinnamon-ontology-v1",
+  "version": "cinnamon-ontology-v2",
   "classes": {
     "healthy_cinnamon": {
       "display_label": "Healthy Cinnamon",
-      "visual_description": "No modeled disease features are visible.",
+      "visual_description": "Uniform deep-green lamina with smooth, glossy surface and intact margins. No lesions, discolouration, trails, spots, or protrusions of any kind.",
       "expert_review_required": false
     },
     "leaf_blight": {
       "display_label": "Leaf Blight",
-      "visual_description": "Possible blighted or necrotic areas on the leaf.",
+      "visual_description": "Large, irregular, necrotic brown or tan patches covering significant portions of the lamina. Affected tissue is dry and papery. Lesion edges are diffuse and may merge across the leaf surface. Distinct from fungal spots which are smaller and more circular.",
       "expert_review_required": true
     },
     "leaf_miner_attack": {
       "display_label": "Leaf Miner Attack",
-      "visual_description": "Possible trails, mines, or damaged leaf tissue.",
+      "visual_description": "Distinctly serpentine, winding, or blotch-shaped white or silvery translucent trails on the leaf surface caused by larval feeding between the epidermal layers. Trails are clearly delineated against the green lamina. No raised protrusions. Distinct from blight (no necrotic patch) and from fungal spots (no circular halo).",
       "expert_review_required": true
     },
     "leaf_patches_fungal": {
-      "display_label": "Leaf Patches - Fungal Disease",
-      "visual_description": "Possible discoloured or irregular patches on the leaf.",
+      "display_label": "Leaf Patches – Fungal Disease",
+      "visual_description": "Smaller, localised, roughly circular or angular spots, often yellow, brown, or dark in colour. Spots frequently have a defined halo or concentric ring boundary separating healthy and infected tissue. Multiple discrete spots may be scattered across the lamina. Smaller and more regular than blight lesions.",
       "expert_review_required": true
     },
     "lower_leaf_gall": {
       "display_label": "Lower Leaf Gall",
-      "visual_description": "Possible gall-like growths on the lower leaf surface.",
+      "visual_description": "Raised, blister-like, dome-shaped protrusions visible primarily on the LOWER (abaxial) surface of the leaf. The corresponding upper surface may appear slightly depressed or discoloured. Protrusions are firm and smooth. Distinguish from upper_leaf_gall by confirming the protrusions are on the underside.",
       "expert_review_required": true
     },
     "non_cinnamon": {
       "display_label": "Non-Cinnamon",
-      "visual_description": "",
+      "visual_description": "Leaf or plant material that does not belong to the cinnamon (Cinnamomum verum / Cinnamomum zeylanicum) species. May be any other plant, object, or background.",
       "expert_review_required": true
     },
     "upper_leaf_gall": {
       "display_label": "Upper Leaf Gall",
-      "visual_description": "Possible gall-like growths on the upper leaf surface.",
+      "visual_description": "Raised, blister-like, dome-shaped protrusions visible primarily on the UPPER (adaxial) surface of the leaf. Protrusions are firm and may be green, yellow, or reddish. Distinguish from lower_leaf_gall by confirming the protrusions are on the top surface.",
       "expert_review_required": true
     }
   }
