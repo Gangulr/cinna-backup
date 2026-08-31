@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
+import { getAuth } from "firebase/auth";
 
 import {
   Thermometer,
@@ -61,7 +62,7 @@ export default function Dashboard() {
     const fetchSensorData = async () => {
       try {
         const response = await fetch(
-          `${apiUrl}/latest-iot-data/`,
+          `${apiUrl}/latest-iot-data`,
           {
             cache: "no-store",
           }
@@ -105,13 +106,24 @@ export default function Dashboard() {
       try {
         setChartLoading(true);
 
+        const auth = getAuth();
+        const user = auth.currentUser;
+        
+        let headers: Record<string, string> = {};
+        if (user) {
+          const token = await user.getIdToken();
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
         const [growthResponse, diseaseResponse] =
           await Promise.all([
-            fetch(`${apiUrl}/growth-history/`, {
+            fetch(`${apiUrl}/growth-history`, {
               cache: "no-store",
+              headers
             }),
-            fetch(`${apiUrl}/disease-history/`, {
+            fetch(`${apiUrl}/disease-history`, {
               cache: "no-store",
+              headers
             }),
           ]);
 
