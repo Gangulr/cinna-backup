@@ -82,6 +82,13 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# The condition model is trained offline; the independent worker ingests readings.
+from plant_condition.api import create_router as create_condition_router
+from plant_condition.runtime import build_service as build_condition_service
+
+condition_service = build_condition_service(db, os.getenv("FIREBASE_SENSOR_DATABASE_URL", ""))
+app.include_router(create_condition_router(condition_service, get_current_user, require_admin))
+
 
 # =========================================================
 # ESP32 USB SERIAL CONTROLLER
@@ -349,6 +356,7 @@ print(
 @app.on_event("shutdown")
 async def close_hybrid_disease_service() -> None:
     await hybrid_disease_orchestrator.gemini_service.close()
+    await condition_service.guidance.close()
     close_esp32_connection()
 
 
@@ -1657,6 +1665,8 @@ def health_check() -> Dict[str, Any]:
         "disease_model_loaded": (
             disease_model is not None
         ),
+        "plant_condition_model_loaded": condition_service.baseline.model is not None,
+        "plant_condition_mode": "shadow" if condition_service.shadow else "monitor",
     }
 
 
@@ -1777,133 +1787,9 @@ def get_sensor_data() -> Dict[str, Any]:
 @app.get("/latest-iot-data")
 @app.get("/latest-iot-data/")
 def latest_iot_data() -> Dict[str, Any]:
-    try:
-        url = f"{RTDB_URL}/.json"
+    from plant_condition.live import fetch_live
 
-        response = requests.get(
-            url,
-            timeout=10,
-        )
-
-        response.raise_for_status()
-
-        realtime_data = response.json()
-
-        if not realtime_data:
-            return {
-                "error": "No IoT data found.",
-            }
-
-        esp32_data = realtime_data.get(
-            "esp32",
-            realtime_data,
-        )
-
-        sensor_data = esp32_data.get(
-            "sensor_data",
-            esp32_data,
-        )
-
-        sensor: Dict[str, Any] = {}
-
-        if isinstance(sensor_data, list):
-            valid_records = [
-                item
-                for item in sensor_data
-                if isinstance(item, dict)
-            ]
-
-            sensor = (
-                valid_records[-1]
-                if valid_records
-                else {}
-            )
-
-        elif isinstance(sensor_data, dict):
-            required_fields = [
-                "temperature",
-                "humidity",
-                "moisture",
-            ]
-
-            if all(
-                key in sensor_data
-                for key in required_fields
-            ):
-                sensor = sensor_data
-
-            else:
-                valid_records = [
-                    item
-                    for item in sensor_data.values()
-                    if isinstance(item, dict)
-                ]
-
-                sensor = (
-                    valid_records[-1]
-                    if valid_records
-                    else sensor_data
-                )
-
-        temperature = (
-            sensor.get("temperature")
-            or sensor.get("Temperature")
-        )
-
-        humidity = (
-            sensor.get("humidity")
-            or sensor.get("Humidity")
-        )
-
-        moisture = sensor.get("moisture")
-
-        if moisture is None:
-            moisture = (
-                sensor.get("Moisture")
-                or sensor.get("soil_moisture")
-                or sensor.get("Soil_Moisture")
-                or sensor.get("soilMoisture")
-            )
-
-        if (
-            temperature is None
-            or humidity is None
-            or moisture is None
-        ):
-            return {
-                "error": (
-                    "Invalid IoT data structure."
-                ),
-                "selected_sensor": sensor,
-            }
-
-        return {
-            "temperature": float(temperature),
-            "humidity": float(humidity),
-            "moisture": float(moisture),
-            "battery": float(
-                sensor.get("battery", 0)
-            ),
-            "timestamp": sensor.get(
-                "timestamp",
-                "",
-            ),
-            "source": (
-                "Firebase RTDB - ESP32"
-            ),
-        }
-
-    except requests.RequestException as error:
-        return {
-            "error": (
-                f"IoT database request failed: {error}"
-            ),
-        }
-
-    except Exception as error:
-        return {
-            "error": str(error),
-        }
+    return fetch_live(RTDB_URL, os.getenv("FIREBASE_SENSOR_AUTH_TOKEN", ""))
 
 
 # =========================================================

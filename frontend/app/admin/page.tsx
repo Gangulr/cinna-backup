@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import ProtectedRoute from "@/app/components/ProtectedRoute";
+import PlantConditionAdmin from "@/app/components/PlantConditionAdmin";
 import { useAuth } from "@/app/context/AuthContext";
 import { db } from "@/app/lib/firebase";
 
@@ -593,6 +594,10 @@ export default function AdminPage() {
               </div>
             )}
           </section>
+          <details className="mt-8 rounded-xl border border-slate-200 bg-white p-6">
+            <summary className="cursor-pointer font-semibold">Advanced device assignments and inspection reviews (optional)</summary>
+            <PlantConditionAdmin owners={users} />
+          </details>
         </div>
       </main>
     </ProtectedRoute>

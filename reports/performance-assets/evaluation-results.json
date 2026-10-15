@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-02",
+  "scope": "isolated synthetic holdout evaluation; no external services",
+  "growth_seed_features": 42,
+  "growth_seed_noise": 20261002,
+  "split_seed": 42,
+  "forest_seed": 42,
+  "growth": {
+    "samples": 10000,
+    "train": 8000,
+    "test": 2000,
+    "metrics": {
+      "Random Forest": {
+        "RMSE_mm": 0.1648233732726988,
+        "MAE_mm": 0.13171047121658586,
+        "MAPE_percent": 19.050194248326136,
+        "R2": 0.8392603073620992
+      },
+      "Direct noiseless formula": {
+        "RMSE_mm": 0.14954516770887397,
+        "MAE_mm": 0.11976155179060455,
+        "MAPE_percent": 17.433063398938398,
+        "R2": 0.8676785334939813
+      },
+      "Training-target mean": {
+        "RMSE_mm": 0.41122279505593773,
+        "MAE_mm": 0.36370932730790756,
+        "MAPE_percent": 51.46110334323887,
+        "R2": -0.0005525392689558206
+      }
+    },
+    "fit_seconds": 0.5765432090265676,
+    "prediction_benchmark": {
+      "repeats": 30,
+      "warmups": 5,
+      "mean_ms": 14.921538894607997,
+      "median_ms": 14.272958505898714,
+      "p95_ms": 14.818803773960099,
+      "minimum_ms": 12.062792025972158,
+      "maximum_ms": 43.13841700786725
+    }
+  },
+  "harvest": {
+    "samples": 2000,
+    "train": 1600,
+    "test": 400,
+    "full_positive_count": 65,
+    "train_positive_count": 52,
+    "test_positive_count": 13,
+    "stratified": true,
+    "metrics": {
+      "RF threshold 0.50": {
+        "accuracy": 0.9975,
+        "precision_positive": 1.0,
+        "recall_positive": 0.9230769230769231,
+        "F1_positive": 0.96,
+        "confusion_matrix": [
+          [
+            387,
+            0
+          ],
+          [
+            1,
+            12
+          ]
+        ]
+      },
+      "RF approval threshold 0.80": {
+        "accuracy": 0.9825,
+        "precision_positive": 1.0,
+        "recall_positive": 0.46153846153846156,
+        "F1_positive": 0.631578947368421,
+        "confusion_matrix": [
+          [
+            387,
+            0
+          ],
+          [
+            7,
+            6
+          ]
+        ]
+      },
+      "Always negative": {
+        "accuracy": 0.9675,
+        "precision_positive": 0.0,
+        "recall_positive": 0.0,
+        "F1_positive": 0.0,
+        "confusion_matrix": [
+          [
+            387,
+            0
+          ],
+          [
+            13,
+            0
+          ]
+        ]
+      },
+      "Direct source rule": {
+        "accuracy": 1.0,
+        "precision_positive": 1.0,
+        "recall_positive": 1.0,
+        "F1_positive": 1.0,
+        "confusion_matrix": [
+          [
+            387,
+            0
+          ],
+          [
+            0,
+            13
+          ]
+        ]
+      }
+    },
+    "ROC_AUC": 1.0,
+    "average_precision": 1.0,
+    "fit_seconds": 0.11819599999580532,
+    "prediction_benchmark": {
+      "repeats": 30,
+      "warmups": 5,
+      "mean_ms": 4.445541502597432,
+      "median_ms": 4.42560450755991,
+      "p95_ms": 4.588626782060601,
+      "minimum_ms": 4.357333004008979,
+      "maximum_ms": 4.677375021856278
+    },
+    "approval_count": 6,
+    "wait_count": 5,
+    "blocked_count": 389
+  },
+  "environment": {
+    "python": "3.11.15",
+    "platform": "Darwin",
+    "machine": "arm64",
+    "numpy": "1.26.4",
+    "pandas": "3.0.3",
+    "scikit_learn": "1.9.0"
+  }
+}

@@ -29,11 +29,12 @@ type GrowthMetrics = {
 };
 
 type SensorResponse = {
-  temperature?: number;
-  humidity?: number;
-  moisture?: number;
+  temperature?: number | null;
+  humidity?: number | null;
+  moisture?: number | null;
   timestamp?: string;
   error?: string;
+  warnings?: string[];
 };
 
 type GrowthResult = {
@@ -66,6 +67,7 @@ export default function GrowthPredictionPage() {
   const [sensorLoading, setSensorLoading] = useState(false);
   const [error, setError] = useState("");
   const [sensorTime, setSensorTime] = useState("");
+  const [sensorWarnings, setSensorWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     const loadMetrics = async () => {
@@ -216,6 +218,8 @@ export default function GrowthPredictionPage() {
           data.moisture ?? ""
         ),
       }));
+
+      setSensorWarnings(data.warnings ?? []);
 
       setSensorTime(
         data.timestamp || ""
@@ -380,7 +384,7 @@ export default function GrowthPredictionPage() {
               </div>
 
               <h2 className="kpi-value">
-                {form.temperature || "-"}
+                {form.temperature || "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   °C
@@ -398,7 +402,7 @@ export default function GrowthPredictionPage() {
               </div>
 
               <h2 className="kpi-value">
-                {form.humidity || "-"}
+                {form.humidity || "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   %
@@ -416,7 +420,7 @@ export default function GrowthPredictionPage() {
               </div>
 
               <h2 className="kpi-value">
-                {form.moisture || "-"}
+                {form.moisture || "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   %
@@ -565,6 +569,10 @@ export default function GrowthPredictionPage() {
                   : "Predict Growth"}
               </button>
             </div>
+
+            {sensorWarnings.map((warning) => (
+              <p key={warning} className="text-sm text-amber-800">{warning}</p>
+            ))}
 
             {sensorTime && (
               <div className="mt-4 rounded-lg border border-slate-200/60 bg-slate-50 px-4 py-3 text-sm text-slate-600">

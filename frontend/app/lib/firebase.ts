@@ -1,6 +1,10 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  type FirestoreSettings,
+} from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey:
@@ -23,6 +27,14 @@ const app = getApps().length > 0
   : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+// Firebase 12 supports this transport option at runtime, although it is not
+// exposed in FirestoreSettings. In development, XHR avoids the Fetch-stream
+// cancellation path reported in the browser logs. Keep production defaults.
+const developmentSettings: FirestoreSettings & { useFetchStreams: boolean } = {
+  useFetchStreams: false,
+};
+export const db = process.env.NODE_ENV === "development"
+  ? initializeFirestore(app, developmentSettings)
+  : getFirestore(app);
 
 export default app;

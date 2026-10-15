@@ -1,0 +1,65 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "plant_conditions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "plant_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "observed_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "plant_health_observations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "plant_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "inspected_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "plant_condition_checks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assessed_at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "plant_condition_checks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "plant_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "assessed_at",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

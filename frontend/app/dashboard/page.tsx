@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import ProtectedRoute from "@/app/components/ProtectedRoute";
+import LivePlantConditionChecks from "@/app/components/LivePlantConditionChecks";
 import { getAuth } from "firebase/auth";
 
 import {
@@ -22,11 +23,12 @@ type DiseaseData = {
 };
 
 export default function Dashboard() {
-  const [sensor, setSensor] = useState({
-    temperature: 0,
-    humidity: 0,
-    moisture: 0,
+  const [sensor, setSensor] = useState<{ temperature: number | null; humidity: number | null; moisture: number | null }>({
+    temperature: null,
+    humidity: null,
+    moisture: null,
   });
+  const [sensorMessage, setSensorMessage] = useState("Waiting for sensor readings");
 
   const [totalGrowth, setTotalGrowth] = useState(0);
   const [totalDisease, setTotalDisease] = useState(0);
@@ -78,13 +80,19 @@ export default function Dashboard() {
 
         if (!data.error) {
           setSensor({
-            temperature: Number(data.temperature || 0),
-            humidity: Number(data.humidity || 0),
-            moisture: Number(data.moisture || 0),
+            temperature: data.temperature ?? null,
+            humidity: data.humidity ?? null,
+            moisture: data.moisture ?? null,
           });
+          setSensorMessage(data.freshness === "fresh" ? "Recent sensor snapshot · 5s refresh" : data.freshness === "stale" ? "Older sensor snapshot · 5s refresh" : "Measurement time unknown · 5s refresh");
+        } else {
+          setSensor({ temperature: null, humidity: null, moisture: null });
+          setSensorMessage("Sensor feed unavailable");
         }
       } catch (error) {
         console.error("IoT fetch error:", error);
+        setSensor({ temperature: null, humidity: null, moisture: null });
+        setSensorMessage("Sensor feed unavailable");
       }
     };
 
@@ -275,7 +283,9 @@ export default function Dashboard() {
             </p>
           </div>
 
+
           {/* ================= LIVE SENSOR CARDS ================= */}
+          <p className="text-sm text-slate-600">Shared environmental readings</p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="card border-l-4 border-l-rose-500 p-5">
               <div className="flex items-start justify-between">
@@ -289,7 +299,7 @@ export default function Dashboard() {
               </div>
 
               <h2 className="kpi-value">
-                {sensor.temperature}
+                {sensor.temperature ?? "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   °C
@@ -297,7 +307,7 @@ export default function Dashboard() {
               </h2>
 
               <span className="mt-3 badge-info">
-                Live · 5s poll
+                {sensorMessage}
               </span>
             </div>
 
@@ -313,7 +323,7 @@ export default function Dashboard() {
               </div>
 
               <h2 className="kpi-value">
-                {sensor.humidity}
+                {sensor.humidity ?? "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   %
@@ -321,7 +331,7 @@ export default function Dashboard() {
               </h2>
 
               <span className="mt-3 badge-info">
-                Live · 5s poll
+                {sensorMessage}
               </span>
             </div>
 
@@ -337,15 +347,15 @@ export default function Dashboard() {
               </div>
 
               <h2 className="kpi-value">
-                {sensor.moisture}
+                {sensor.moisture ?? "Not available"}
 
                 <span className="ml-1 text-base font-semibold text-slate-500">
                   %
                 </span>
               </h2>
 
-              <span className="mt-3 badge-healthy">
-                Optimal range
+              <span className="mt-3 badge-info">
+                {sensorMessage}
               </span>
             </div>
           </div>
@@ -703,7 +713,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            
+            <LivePlantConditionChecks />
           </div>
         </div>
       </div>
