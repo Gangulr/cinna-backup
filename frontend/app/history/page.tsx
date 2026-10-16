@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import ProtectedRoute from "@/app/components/ProtectedRoute";
+import BarkHistorySection from "@/app/components/BarkHistorySection";
 import { useAuth } from "@/app/context/AuthContext";
 import { apiGet } from "@/app/lib/api";
 
@@ -1576,6 +1577,8 @@ export default function HistoryPage() {
               </button>
             </div>
           </div>
+
+          <BarkHistorySection />
 
           <div className="card overflow-hidden">
             <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

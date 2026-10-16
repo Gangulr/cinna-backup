@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "model_version": "bark-disease-v5-two-class-experimental",
+  "task": "supported_bark_disease_classification",
+  "architecture": "EfficientNetB0",
+  "model_file": "bark_condition_model.keras",
+  "artifact_sha256": "6521abf1278949b76325db10c45dcf6cbe1190bcf930d4494e7ab6eb1127fa3a",
+  "companion_h5_sha256": "a3b2094b74310dfb08a7d940dda0a7a57e14fc6409fb78410261212ecc68ef1b",
+  "dataset": {
+    "source": "Kaggle",
+    "dataset_id": "madhavipethangoda/cinnamon-plant-stem-and-branch-disease-dataset"
+  },
+  "input": {
+    "shape": [
+      null,
+      224,
+      224,
+      3
+    ],
+    "dtype": "float32",
+    "colour_order": "RGB",
+    "pixel_range": [
+      0,
+      255
+    ],
+    "exif_transpose": true,
+    "resize_library": "Pillow",
+    "resize_method": "bilinear",
+    "aspect_ratio_policy": "stretch",
+    "external_normalization": "none",
+    "backbone_preprocessing": "included_in_model"
+  },
+  "output": {
+    "shape": [
+      null,
+      2
+    ],
+    "activation": "softmax",
+    "class_names": [
+      "RoughBark",
+      "StripeCanker"
+    ]
+  },
+  "decision_policy": {
+    "confidence_threshold": 0.5,
+    "margin_threshold": 0.0,
+    "selected_using": "validation_data_only",
+    "target_accepted_accuracy": 0.9,
+    "minimum_validation_coverage": 0.6,
+    "acceptance_enabled": true,
+    "validation_targets_met": true,
+    "selected_validation_coverage": 0.9591836734693877,
+    "selected_validation_accepted_accuracy": 0.9787234042553191,
+    "accepted_result": "disease_detected",
+    "unaccepted_result": "uncertain",
+    "healthy_detection_supported": false,
+    "final_acceptance_enabled": false,
+    "domain_policy_file": "ood_policy.json",
+    "rejected_result": "rejected",
+    "note": "These thresholds only accept RoughBark/StripeCanker classification. They do not distinguish healthy bark or reject all unknown inputs.",
+    "fallback": "Disable acceptance when no validation policy meets the stated targets."
+  },
+  "input_rejection": {
+    "schema_version": 3,
+    "inference_mode": "reference_only_experimental",
+    "purpose": "known_disease_support_only",
+    "outside_reference_status": "uncertain",
+    "method": "mean_knn_cosine_distance",
+    "k": 5,
+    "distance_threshold": 0.27864599603105356,
+    "reference_source": "unaugmented_training_images_only",
+    "embedding_layer": "global_average_pooling",
+    "embedding_dimension": 1280,
+    "reference_images": 226,
+    "calibration_source": "positive_validation_quantile_experimental",
+    "positive_validation_quantile": 0.975,
+    "validation_bark_coverage": 0.9591836734693877,
+    "negative_validation_images": 0,
+    "negative_validation_pass_rate": null,
+    "minimum_negative_validation_images": 20,
+    "target_bark_coverage": 0.95,
+    "target_negative_pass_rate": 0.05,
+    "negative_validation_targets_met": false,
+    "allow_positive_only_disease_results": false,
+    "species_verification_supported": false,
+    "healthy_detection_supported": false,
+    "limitation": "Observed validation targets are not a guarantee for unseen objects, other bark, or healthy cinnamon bark.",
+    "reference_sha256": "c17c3f259c1d6e1eb3f52c516b0d1d6c2e29e39a0182c46dbcf59d46737608f7",
+    "model_sha256": {
+      "bark_condition_model.keras": "6521abf1278949b76325db10c45dcf6cbe1190bcf930d4494e7ab6eb1127fa3a",
+      "bark_condition_model.h5": "a3b2094b74310dfb08a7d940dda0a7a57e14fc6409fb78410261212ecc68ef1b"
+    },
+    "training_manifest_sha256": "0743b44de1311465f293dfa8022a97873240d0c0ff526fba715d835dad0106b7"
+  },
+  "relevance_gate": {
+    "schema_version": 1,
+    "available": false,
+    "class_names": [
+      "not_relevant",
+      "relevant_bark"
+    ],
+    "positive_class_id": 1,
+    "acceptance_enabled": false,
+    "rejection_enabled": false,
+    "accept_threshold": null,
+    "reject_threshold": null,
+    "positive_validation_images": 0,
+    "negative_validation_images": 0,
+    "minimum_validation_per_class": 20,
+    "min_positive_pass": 0.9,
+    "max_negative_pass": 0.05,
+    "max_positive_reject": 0.02,
+    "min_negative_reject": 0.8,
+    "calibration_source": "relevance_validation_only",
+    "healthy_diagnosis_supported": false,
+    "model_file": null,
+    "model_sha256": null,
+    "architecture": "MobileNetV3Small",
+    "group_independence_verified": false
+  },
+  "relevance_test_metrics": {
+    "images": 0,
+    "positive_images": 0,
+    "negative_images": 0,
+    "positive_false_reject_rate": null,
+    "negative_false_pass_rate": null,
+    "uncertain_rate": null,
+    "roc_auc": null
+  },
+  "prediction_runtime": {
+    "domain_first": true,
+    "skip_disease_head_for_rejected": true,
+    "hide_disease_scores_for_rejected": true,
+    "response_schema": "bark-prediction-v5",
+    "inference_mode": "reference_only_experimental",
+    "separate_relevance_gate": false,
+    "experimental_fallback_without_relevance": true,
+    "outside_disease_reference_status": "uncertain"
+  },
+  "required_rejection_files": [
+    "bark_rejection.py",
+    "ood_reference.npz",
+    "ood_policy.json",
+    "relevance_policy.json"
+  ],
+  "training": {
+    "seed": 42,
+    "chosen_stage": "stage2_fine_tuned",
+    "split_unit": "image",
+    "split_manifest_sha256": "0743b44de1311465f293dfa8022a97873240d0c0ff526fba715d835dad0106b7",
+    "fine_tune_fraction": 0.25,
+    "checkpoint_selection": "validation_loss",
+    "stage_selection": "validation_macro_f1"
+  },
+  "training_versions": {
+    "created_at_utc": "2026-10-15T20:06:59.623288+00:00",
+    "python": "3.13.15",
+    "tensorflow": "2.21.0",
+    "keras": "3.13.2",
+    "numpy": "2.1.3",
+    "pandas": "2.2.3",
+    "scikit_learn": "1.6.1",
+    "pillow": "11.3.0",
+    "h5py": "3.14.0",
+    "kagglehub": "1.0.2",
+    "matplotlib": "3.10.0",
+    "platform": "Linux-6.6.122+-x86_64-with-glibc2.39",
+    "gpu_devices": [
+      "PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')"
+    ],
+    "tensorflow_build": {
+      "cpu_compiler": "clang",
+      "cuda_compute_capabilities": "['sm_60', 'sm_70', 'sm_80', 'sm_89', 'compute_90']",
+      "cuda_version": "12.5.1",
+      "cudnn_version": "9",
+      "is_cuda_build": "True",
+      "is_rocm_build": "False",
+      "is_tensorrt_build": "False"
+    }
+  },
+  "target_backend_versions": {
+    "tensorflow": "2.16.2",
+    "keras": "3.15.1",
+    "numpy": "1.26.4",
+    "h5py": "3.16.0",
+    "pillow": "12.2.0"
+  },
+  "tested_backend_versions": null,
+  "backend_parity_tested": false,
+  "export_parity": {
+    "keras_passed": true,
+    "h5_passed": false
+  },
+  "deployment_ready": false,
+  "deployment_note": "Backend parity and target-domain validation remain required; failed exports are diagnostic only.",
+  "healthy_detection_supported": false,
+  "evaluation": {
+    "chosen_training_stage": "stage2_fine_tuned",
+    "stage1_validation_accuracy": 0.9591836734693877,
+    "stage1_validation_macro_f1": 0.9587542087542087,
+    "stage2_validation_accuracy": 0.9795918367346939,
+    "stage2_validation_macro_f1": 0.9794549266247379,
+    "test_accuracy": 1.0,
+    "test_macro_f1": 1.0,
+    "test_balanced_accuracy": 1.0,
+    "test_images": 49,
+    "inference_mode": "reference_only_experimental",
+    "test_accepted_images": 0,
+    "test_uncertain_images": 2,
+    "test_rejected_images": 0,
+    "test_experimental_candidates": 47,
+    "experimental_test_coverage": 0.9591836734693877,
+    "experimental_test_accuracy": 1.0,
+    "test_coverage": 0.0,
+    "accepted_test_accuracy": null,
+    "test_class_support": {
+      "RoughBark": 24,
+      "StripeCanker": 25
+    },
+    "ood_evaluation": {
+      "inference_mode": "reference_only_experimental",
+      "known_disease_test_images": 49,
+      "known_disease_reference_coverage": 0.9591836734693877,
+      "negative_test_images": 0,
+      "negative_test_rejection_rate": null,
+      "negative_test_disease_result_rate": null,
+      "negative_test_experimental_candidate_rate": null,
+      "negative_test_reference_pass_rate": null,
+      "species_verification_supported": false
+    },
+    "healthy_detection_supported": false,
+    "healthy_unhealthy_accuracy": null,
+    "model_selection_source": "validation_macro_f1",
+    "threshold_source": "validation_only"
+  },
+  "limitations": [
+    "No healthy class is supplied.",
+    "Tree/site IDs are not provided by this workflow.",
+    "File hashes do not detect all re-encoded duplicates.",
+    "Near-duplicate pairs are reported only; related-image leakage may remain.",
+    "Dataset disease labels have not been independently expert-confirmed by this notebook.",
+    "Confidence does not establish healthy bark or reliable rejection of unrelated images.",
+    "Reference-only experimental candidates do not verify input relevance or constitute accepted diagnoses.",
+    "No production backend inference has been tested by this Colab run."
+  ]
+}

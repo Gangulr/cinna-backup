@@ -1,0 +1,17 @@
+{
+  "training": {
+    "trained": false,
+    "architecture": "MobileNetV3Small",
+    "selection": "validation_roc_auc"
+  },
+  "test": {
+    "images": 0,
+    "positive_images": 0,
+    "negative_images": 0,
+    "positive_false_reject_rate": null,
+    "negative_false_pass_rate": null,
+    "uncertain_rate": null,
+    "roc_auc": null
+  },
+  "export_parity_passed": null
+}

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import ProtectedRoute from "@/app/components/ProtectedRoute";
+import BarkDiseaseSection from "@/app/components/BarkDiseaseSection";
 import { apiPostFormData } from "@/app/lib/api";
 
 type DiseaseStatus =
@@ -589,6 +590,7 @@ export default function DiseasePredictor() {
               </div>
             </div>
           )}
+          <BarkDiseaseSection />
         </div>
       </div>
     </ProtectedRoute>

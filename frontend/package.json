@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:plant-condition": "node --experimental-strip-types --test tests/plant-condition.test.mjs"
+    "test:plant-condition": "node --experimental-strip-types --test tests/plant-condition.test.mjs",
+    "test:bark": "node --experimental-strip-types --test tests/bark-disease.test.mjs"
   },
   "dependencies": {
     "axios": "^1.16.0",

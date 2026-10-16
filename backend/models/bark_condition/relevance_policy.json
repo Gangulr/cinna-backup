@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "available": false,
+  "class_names": [
+    "not_relevant",
+    "relevant_bark"
+  ],
+  "positive_class_id": 1,
+  "acceptance_enabled": false,
+  "rejection_enabled": false,
+  "accept_threshold": null,
+  "reject_threshold": null,
+  "positive_validation_images": 0,
+  "negative_validation_images": 0,
+  "minimum_validation_per_class": 20,
+  "min_positive_pass": 0.9,
+  "max_negative_pass": 0.05,
+  "max_positive_reject": 0.02,
+  "min_negative_reject": 0.8,
+  "calibration_source": "relevance_validation_only",
+  "healthy_diagnosis_supported": false,
+  "model_file": null,
+  "model_sha256": null,
+  "architecture": "MobileNetV3Small",
+  "group_independence_verified": false
+}

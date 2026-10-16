@@ -1,0 +1,32 @@
+{
+  "schema_version": 3,
+  "inference_mode": "reference_only_experimental",
+  "purpose": "known_disease_support_only",
+  "outside_reference_status": "uncertain",
+  "method": "mean_knn_cosine_distance",
+  "k": 5,
+  "distance_threshold": 0.27864599603105356,
+  "reference_source": "unaugmented_training_images_only",
+  "embedding_layer": "global_average_pooling",
+  "embedding_dimension": 1280,
+  "reference_images": 226,
+  "calibration_source": "positive_validation_quantile_experimental",
+  "positive_validation_quantile": 0.975,
+  "validation_bark_coverage": 0.9591836734693877,
+  "negative_validation_images": 0,
+  "negative_validation_pass_rate": null,
+  "minimum_negative_validation_images": 20,
+  "target_bark_coverage": 0.95,
+  "target_negative_pass_rate": 0.05,
+  "negative_validation_targets_met": false,
+  "allow_positive_only_disease_results": false,
+  "species_verification_supported": false,
+  "healthy_detection_supported": false,
+  "limitation": "Observed validation targets are not a guarantee for unseen objects, other bark, or healthy cinnamon bark.",
+  "reference_sha256": "c17c3f259c1d6e1eb3f52c516b0d1d6c2e29e39a0182c46dbcf59d46737608f7",
+  "model_sha256": {
+    "bark_condition_model.keras": "6521abf1278949b76325db10c45dcf6cbe1190bcf930d4494e7ab6eb1127fa3a",
+    "bark_condition_model.h5": "a3b2094b74310dfb08a7d940dda0a7a57e14fc6409fb78410261212ecc68ef1b"
+  },
+  "training_manifest_sha256": "0743b44de1311465f293dfa8022a97873240d0c0ff526fba715d835dad0106b7"
+}

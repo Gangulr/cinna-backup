@@ -1,0 +1,11 @@
+{
+  "inference_mode": "reference_only_experimental",
+  "known_disease_test_images": 49,
+  "known_disease_reference_coverage": 0.9591836734693877,
+  "negative_test_images": 0,
+  "negative_test_rejection_rate": null,
+  "negative_test_disease_result_rate": null,
+  "negative_test_experimental_candidate_rate": null,
+  "negative_test_reference_pass_rate": null,
+  "species_verification_supported": false
+}

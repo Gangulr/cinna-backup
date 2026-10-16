@@ -1643,6 +1643,14 @@ disease_info = {
 }
 
 
+# Initialize bark after the existing models to preserve their initialization order.
+from bark_disease.api import create_router as create_bark_router
+from bark_disease.model import BarkModel
+
+bark_model = BarkModel(BASE_DIR / "models" / "bark_condition")
+app.include_router(create_bark_router(bark_model, get_current_user, save_to_firebase, get_user_history))
+
+
 # =========================================================
 # BASIC ROUTES
 # =========================================================
@@ -1667,6 +1675,7 @@ def health_check() -> Dict[str, Any]:
         ),
         "plant_condition_model_loaded": condition_service.baseline.model is not None,
         "plant_condition_mode": "shadow" if condition_service.shadow else "monitor",
+        "bark_model_loaded": bark_model.ready,
     }
 
 

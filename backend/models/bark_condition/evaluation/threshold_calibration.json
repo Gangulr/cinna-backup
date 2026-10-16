@@ -1,0 +1,19 @@
+{
+  "confidence_threshold": 0.5,
+  "margin_threshold": 0.0,
+  "selected_using": "validation_data_only",
+  "target_accepted_accuracy": 0.9,
+  "minimum_validation_coverage": 0.6,
+  "acceptance_enabled": true,
+  "validation_targets_met": true,
+  "selected_validation_coverage": 0.9591836734693877,
+  "selected_validation_accepted_accuracy": 0.9787234042553191,
+  "accepted_result": "disease_detected",
+  "unaccepted_result": "uncertain",
+  "healthy_detection_supported": false,
+  "final_acceptance_enabled": false,
+  "domain_policy_file": "ood_policy.json",
+  "rejected_result": "rejected",
+  "note": "These thresholds only accept RoughBark/StripeCanker classification. They do not distinguish healthy bark or reject all unknown inputs.",
+  "fallback": "Disable acceptance when no validation policy meets the stated targets."
+}

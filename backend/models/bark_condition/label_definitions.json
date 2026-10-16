@@ -1,0 +1,14 @@
+{
+  "RoughBark": {
+    "display_name": "Rough Bark",
+    "type": "supported_disease_label",
+    "dataset_label": "RoughBark",
+    "healthy": false
+  },
+  "StripeCanker": {
+    "display_name": "Stripe Canker",
+    "type": "supported_disease_label",
+    "dataset_label": "StripeCanker",
+    "healthy": false
+  }
+}

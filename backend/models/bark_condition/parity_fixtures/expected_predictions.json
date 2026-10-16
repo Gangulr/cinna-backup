@@ -1,0 +1,212 @@
+{
+  "same_environment_tolerance": 1e-05,
+  "ood_policy_file": "ood_policy.json",
+  "class_names": [
+    "RoughBark",
+    "StripeCanker"
+  ],
+  "decision_policy": {
+    "confidence_threshold": 0.5,
+    "margin_threshold": 0.0,
+    "selected_using": "validation_data_only",
+    "target_accepted_accuracy": 0.9,
+    "minimum_validation_coverage": 0.6,
+    "acceptance_enabled": true,
+    "validation_targets_met": true,
+    "selected_validation_coverage": 0.9591836734693877,
+    "selected_validation_accepted_accuracy": 0.9787234042553191,
+    "accepted_result": "disease_detected",
+    "unaccepted_result": "uncertain",
+    "healthy_detection_supported": false,
+    "final_acceptance_enabled": false,
+    "domain_policy_file": "ood_policy.json",
+    "rejected_result": "rejected",
+    "note": "These thresholds only accept RoughBark/StripeCanker classification. They do not distinguish healthy bark or reject all unknown inputs.",
+    "fallback": "Disable acceptance when no validation policy meets the stated targets."
+  },
+  "keras": {
+    "maximum_absolute_difference": 0.0,
+    "maximum_distance_difference": 0.0,
+    "label_agreement": 1.0,
+    "policy_agreement": 1.0,
+    "passed": true
+  },
+  "h5": {
+    "maximum_absolute_difference": 0.01965586468577385,
+    "maximum_distance_difference": 0.06262895846430216,
+    "label_agreement": 1.0,
+    "policy_agreement": 1.0,
+    "passed": false
+  },
+  "backend_parity_tested": false,
+  "fixtures": [
+    {
+      "file": "00_RoughBark_IMG_E4864.JPG",
+      "true_class": "RoughBark",
+      "image_sha256": "0d6e9cd2109657648fc086a12d6512d8ba04b9b84915385de513638efa0db111",
+      "input_tensor_sha256": "3a9e7ddd8908b9a6655dace8684ca0316d4ebfcfc3c6d8ce5848eabfb5145f25",
+      "expected_probabilities": [
+        0.999147891998291,
+        0.0008520676055923104
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "RoughBark",
+      "predicted_class": "RoughBark",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.1074860250763993,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "RoughBark",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "01_RoughBark_IMG_E4831.JPG",
+      "true_class": "RoughBark",
+      "image_sha256": "80f8ddfbe69db25551d778d998acf2eaf86e292d45881d622b6206645c5b485b",
+      "input_tensor_sha256": "89aedbcbc7503bd4e47579d5c507590320098e6f9f551128129996acf8f8c7d9",
+      "expected_probabilities": [
+        0.9978315234184265,
+        0.0021684716921299696
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "RoughBark",
+      "predicted_class": "RoughBark",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.22108647183404379,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "RoughBark",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "02_RoughBark_IMG_E4787.JPG",
+      "true_class": "RoughBark",
+      "image_sha256": "3cdaa2e3bdef3d7302edc6dec89656492551b37a93df6a6df259c577aefdc97c",
+      "input_tensor_sha256": "5570dc9ca6e948e5bf670f128e5eec88f581b5f3561c521446da6e8fa1e1cde9",
+      "expected_probabilities": [
+        0.9999979734420776,
+        2.0395577848830726e-06
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "RoughBark",
+      "predicted_class": "RoughBark",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.205753960435346,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "RoughBark",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "03_RoughBark_IMG_E4893.JPG",
+      "true_class": "RoughBark",
+      "image_sha256": "7b246337dc6e9db00cbbe24216f2324bc79a82cd8858b67ac6e453ca3452de93",
+      "input_tensor_sha256": "e016252515730efc792aeb851f1474eafe4c19c4add2db025832ea8d4fc0da99",
+      "expected_probabilities": [
+        0.9997672438621521,
+        0.00023273918486665934
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "RoughBark",
+      "predicted_class": "RoughBark",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.1717092055192271,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "RoughBark",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "04_StripeCanker_IMG_1549.JPG",
+      "true_class": "StripeCanker",
+      "image_sha256": "baa4ec0651c389374544f883465aacd2e7009a5ff4cf6b5263b993f7fed78a59",
+      "input_tensor_sha256": "ce9fbf99a021706e21c3212413c35c0114b26daf5a974ea699d20c45657cb288",
+      "expected_probabilities": [
+        0.029669083654880524,
+        0.9703309535980225
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "StripeCanker",
+      "predicted_class": "StripeCanker",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.21486852417527222,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "StripeCanker",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "05_StripeCanker_IMG_E4887.JPG",
+      "true_class": "StripeCanker",
+      "image_sha256": "2f4532972a86740459a69de8069a16b5eb398f12eb62c4f42118ed697952786d",
+      "input_tensor_sha256": "129d2f4ccdee11037ea619bb4c993fc3725c8154133ccc104c7c9e7d9f2d0c48",
+      "expected_probabilities": [
+        0.008279099129140377,
+        0.9917209148406982
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "StripeCanker",
+      "predicted_class": "StripeCanker",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.14501510862441933,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "StripeCanker",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "06_StripeCanker_IMG_1548.JPG",
+      "true_class": "StripeCanker",
+      "image_sha256": "f0f8643b958006fd8216c4169b326e533d8ec3245feb969a5d1e97d4a1da8deb",
+      "input_tensor_sha256": "9786d7d5dd742031090235edc529633c161a50e9fa10b58d8633f2424e902585",
+      "expected_probabilities": [
+        0.04072117060422897,
+        0.9592787623405457
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "StripeCanker",
+      "predicted_class": "StripeCanker",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.2077262275033193,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "StripeCanker",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    },
+    {
+      "file": "07_StripeCanker_IMG_4884.JPG",
+      "true_class": "StripeCanker",
+      "image_sha256": "6e08e8371062f0e30f37bb9a937d6ba27b37fad1edc9c9c226d7b92baa147bda",
+      "input_tensor_sha256": "98ab119726a44b1ed11ed0c58f1b074f7cd72e63a55ac71c0356aae7b8c44240",
+      "expected_probabilities": [
+        0.006760452874004841,
+        0.9932395219802856
+      ],
+      "expected_relevance_score": null,
+      "raw_classifier_class": "StripeCanker",
+      "predicted_class": "StripeCanker",
+      "expected_disease_classification_performed": true,
+      "expected_domain_distance": 0.17131601759377488,
+      "expected_status": "experimental_candidate",
+      "expected_prediction": "StripeCanker",
+      "expected_reason": "reference_supported_experimental_candidate",
+      "expected_accepted": false,
+      "expected_assessment_mode": "reference_only_experimental",
+      "expected_input_relevance_verified": false
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "source": "Kaggle",
+  "kaggle_dataset_id": "madhavipethangoda/cinnamon-plant-stem-and-branch-disease-dataset",
+  "dataset_directory": "/root/.cache/kagglehub/datasets/madhavipethangoda/cinnamon-plant-stem-and-branch-disease-dataset/versions/1/Diseases",
+  "download_cache_path": "/root/.cache/kagglehub/datasets/madhavipethangoda/cinnamon-plant-stem-and-branch-disease-dataset/versions/1",
+  "total_usable_images": 324,
+  "invalid_images_removed": 0,
+  "exact_duplicates_removed": 0,
+  "conflicting_label_hash_groups_excluded": 1,
+  "conflicting_label_images_excluded": 2,
+  "conflict_resolution_policy": "Exclude every copy of a cross-label identical file; do not infer its correct label.",
+  "potential_near_duplicate_pairs": 101,
+  "near_duplicate_audit_complete": true,
+  "near_duplicate_cross_split_pairs_reported": 51,
+  "class_counts": {
+    "RoughBark": 157,
+    "StripeCanker": 167
+  },
+  "partitions": {
+    "train": {
+      "images": 226,
+      "class_counts": {
+        "RoughBark": 110,
+        "StripeCanker": 116
+      }
+    },
+    "validation": {
+      "images": 49,
+      "class_counts": {
+        "RoughBark": 23,
+        "StripeCanker": 26
+      }
+    },
+    "test": {
+      "images": 49,
+      "class_counts": {
+        "RoughBark": 24,
+        "StripeCanker": 25
+      }
+    }
+  },
+  "split_method": "stratified_image_level_after_exact_file_deduplication",
+  "split_seed": 42,
+  "healthy_detection_supported": false,
+  "tree_site_independence_established": false,
+  "limitations": [
+    "No healthy class is supplied.",
+    "Tree/site IDs are not provided by this workflow.",
+    "File hashes do not detect all re-encoded duplicates.",
+    "Near-duplicate pairs are reported only; related-image leakage may remain.",
+    "Dataset disease labels have not been independently expert-confirmed by this notebook."
+  ]
+}

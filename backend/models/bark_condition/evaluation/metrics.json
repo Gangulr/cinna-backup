@@ -1,0 +1,39 @@
+{
+  "chosen_training_stage": "stage2_fine_tuned",
+  "stage1_validation_accuracy": 0.9591836734693877,
+  "stage1_validation_macro_f1": 0.9587542087542087,
+  "stage2_validation_accuracy": 0.9795918367346939,
+  "stage2_validation_macro_f1": 0.9794549266247379,
+  "test_accuracy": 1.0,
+  "test_macro_f1": 1.0,
+  "test_balanced_accuracy": 1.0,
+  "test_images": 49,
+  "inference_mode": "reference_only_experimental",
+  "test_accepted_images": 0,
+  "test_uncertain_images": 2,
+  "test_rejected_images": 0,
+  "test_experimental_candidates": 47,
+  "experimental_test_coverage": 0.9591836734693877,
+  "experimental_test_accuracy": 1.0,
+  "test_coverage": 0.0,
+  "accepted_test_accuracy": null,
+  "test_class_support": {
+    "RoughBark": 24,
+    "StripeCanker": 25
+  },
+  "ood_evaluation": {
+    "inference_mode": "reference_only_experimental",
+    "known_disease_test_images": 49,
+    "known_disease_reference_coverage": 0.9591836734693877,
+    "negative_test_images": 0,
+    "negative_test_rejection_rate": null,
+    "negative_test_disease_result_rate": null,
+    "negative_test_experimental_candidate_rate": null,
+    "negative_test_reference_pass_rate": null,
+    "species_verification_supported": false
+  },
+  "healthy_detection_supported": false,
+  "healthy_unhealthy_accuracy": null,
+  "model_selection_source": "validation_macro_f1",
+  "threshold_source": "validation_only"
+}
